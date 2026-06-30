@@ -1,0 +1,177 @@
+---
+title: "EU Campsite Demand Forecasting"
+subtitle: "Can data predict whether campsites will be full?"
+author: "Nuša Brezovnik Bunderla"
+date: today
+format:
+  revealjs:
+    theme: simple
+    slide-number: true
+    transition: fade
+    code-fold: true
+    self-contained: true
+---
+
+## The problem
+
+**Campsite operators and tourism agencies face a planning challenge:**
+
+- When should we hire more staff?
+- How much inventory should we pre-order for peak season?
+- Is next July going to be as busy as last year?
+
+> Today, most decisions are made on intuition and last year's memory.
+> **Can machine learning do better?**
+
+---
+
+## The data
+
+**Source:** Eurostat — official EU statistics office (CC BY 4.0, free to use)
+
+**What it contains:**
+Monthly nights spent at camping grounds across EU countries, 2010 to 2026
+
+| | |
+|--|--|
+| **Rows** | ~7,500 country-month observations |
+| **Countries** | 37 European countries |
+| **Period** | 2010 – 2026 |
+
+**Two questions we asked:**
+
+1. Will demand be **Low, Medium, or High** this month? *(classification)*
+2. **How many nights** will be spent? *(regression)*
+
+---
+
+## What the data tells us
+
+:::: {.columns}
+::: {.column width="50%"}
+**Camping is extremely seasonal**
+
+- 70% of all annual nights happen in June–August
+- July alone = 27% of the entire year
+
+**COVID-19 left a clear mark**
+
+- 2020 saw a 37% drop in total nights
+- Recovery was strong by 2022
+:::
+::: {.column width="50%"}
+**Country size matters enormously**
+
+- France: 1.7 billion nights (2010–2026)
+- Luxembourg: far fewer
+
+→ This is why we use **country-specific** demand thresholds, not global ones
+:::
+::::
+
+---
+
+## Our approach
+
+**A leakage-safe machine learning pipeline:**
+
+```
+Raw Eurostat data
+      ↓
+Clean + fill gaps (forward-fill within country)
+      ↓
+Engineer features: lag last month, lag last year,
+                   seasonal flags, cyclical month encoding
+      ↓
+Time-based 80/20 split  ← train on past, test on future
+      ↓
+Four models per task: Dummy → Linear → Decision Tree → XGBoost
+      ↓
+Honest evaluation on test set only
+```
+
+**Key design decision:** We split by time, not randomly.
+Lag features use past data — a random split would leak future information.
+
+---
+
+## Results — Classification
+
+**Can we predict Low / Medium / High demand?**
+
+| Model | Accuracy | F1 (macro) | ROC-AUC |
+|-------|----------|------------|---------|
+| Dummy (always guess most common) | 0.20 | 0.11 | — |
+| Logistic Regression | 0.63 | 0.54 | 0.79 |
+| Decision Tree | 0.72 | 0.71 | — |
+| **XGBoost (our model)** | **0.63** | **0.62** | **0.83** |
+
+> **ROC-AUC of 0.83** means the model correctly identifies a High-demand month
+> as busier than a Low-demand month 83% of the time.
+> Random guessing would score 0.50.
+
+---
+
+## Results — Regression
+
+**Can we forecast the number of nights spent?**
+
+| Model | R² | Average error (MAE) |
+|-------|-----|---------------------|
+| Dummy (predict the mean) | -0.00 | 1,830,958 nights |
+| Ridge Regression | 0.34 | 878,477 nights |
+| Decision Tree | 0.43 | 752,320 nights |
+| **XGBoost (our model)** | **0.53** | **658,352 nights** |
+
+> R² of 0.53 means the model explains 53% of demand variance.
+> The large absolute errors reflect that France and Germany have peaks
+> of 10M+ nights — even a 5% miss is hundreds of thousands of nights.
+
+---
+
+## What drives demand?
+
+**Most important features (XGBoost):**
+
+1. **lag_12m** — same month last year → history repeats
+2. **lag_1m** — last month's demand → momentum matters
+3. **is_summer** — June/July/August are structurally different
+4. **Country identity** — France ≠ Luxembourg, always
+
+**What the model should NOT be trusted for:**
+
+- Countries with fewer than 3 years of data (no reliable lag baseline)
+- Predicting unprecedented shocks like COVID-19
+- Month-level precision for very large countries
+
+---
+
+## Live demo
+
+**Try it yourself:**
+
+→ The app is deployed at: `YOUR_APP_URL`
+
+Select a country, year, and month — the model instantly returns:
+
+- Demand level (Low / Medium / High) with confidence scores
+- Estimated nights spent
+- Historical trend chart for the selected country
+
+**Built with:** Python · scikit-learn · XGBoost · Streamlit · Eurostat API
+
+---
+
+## Key takeaways
+
+::: {.incremental}
+- Campsite demand is **highly predictable in direction** — the model correctly classifies
+  demand level with ROC-AUC of 0.83
+- **Last year's same month** is the single strongest predictor (lag_12m)
+- The model is **useful for planning** (direction and rough magnitude) but not for
+  precise night-count targets in large countries
+- **COVID showed the limits:** no lag-based model survives a true external shock —
+  human judgment remains essential for black-swan events
+:::
+
+> *This model gives campsite operators an early-warning signal, not a guarantee.*
