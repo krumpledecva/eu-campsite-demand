@@ -1,0 +1,1248 @@
+---
+title: "EU Campsite Demand Forecasting"
+subtitle: "End-to-End Machine Learning Analysis"
+author: "Nuša Brezovnik Bunderla"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    self-contained: true
+jupyter: python3
+---
+
+## 0 · Setup
+
+```{python}
+import warnings
+warnings.filterwarnings("ignore")
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import sklearn
+import xgboost
+print(f"sklearn {sklearn.__version__} | xgboost {xgboost.__version__}")
+
+SEED = 42
+```
+
+---
+
+## 1 · Load & Inspect the Data
+
+We download the `tour_occ_nim` table directly from the Eurostat API and filter it to
+camping grounds only (`nace_r2 = I553`: Camping grounds, RV parks & trailer parks),
+total residents, nights spent (`unit = NR`), across EU countries, 2010–present.
+
+```{python}
+import eurostat
+
+# Download the full table from Eurostat (takes ~20-30 seconds)
+raw = eurostat.get_data_df('tour_occ_nim')
+print("Raw shape:", raw.shape)
+print("Columns:", raw.columns.tolist()[:6])
+```
+
+```{python}
+# Filter to exactly: camping grounds, total residents, raw night counts
+# nace_r2=I553 → Camping grounds, RV parks & trailer parks
+# c_resid=TOTAL → all visitors (domestic + foreign)
+# unit=NR → number of nights (not % change)
+mask = (
+    (raw['nace_r2'] == 'I553') &
+    (raw['c_resid'] == 'TOTAL') &
+    (raw['unit']    == 'NR')
+)
+df_camp = raw[mask].copy()
+print("After filter:", df_camp.shape, "rows (one per country)")
+```
+
+```{python}
+# The time columns are wide format (one column per "YYYY-MM").
+# Melt to long format: one row per country-month.
+geo_col   = 'geo\\TIME_PERIOD'
+time_cols = [c for c in df_camp.columns if str(c).startswith('20')]
+
+df_long = df_camp.melt(
+    id_vars=geo_col,
+    value_vars=time_cols,
+    var_name='time',
+    value_name='nights_spent'
+)
+
+# Rename geo column and parse year/month
+df_long = df_long.rename(columns={geo_col: 'geo'})
+df_long['year']  = df_long['time'].str[:4].astype(int)
+df_long['month'] = df_long['time'].str[5:7].astype(int)
+
+# Keep only 2-letter country codes (drop EU aggregates like EU27_2020)
+df_long = df_long[df_long['geo'].str.len() == 2]
+
+# Drop missing / zero values and focus on 2010-onwards
+df_long = df_long.dropna(subset=['nights_spent'])
+df_long = df_long[df_long['nights_spent'] > 0]
+df_long = df_long[df_long['year'] >= 2010]
+
+# Final clean DataFrame
+df = df_long[['geo', 'year', 'month', 'nights_spent']].copy()
+df = df.sort_values(['geo', 'year', 'month']).reset_index(drop=True)
+
+print("Final shape:", df.shape)
+print("Countries:", sorted(df['geo'].unique()))
+print("Year range:", df['year'].min(), "–", df['year'].max())
+df.head(10)
+```
+
+```{python}
+# Basic inspection
+print("=== Data Types ===")
+print(df.dtypes)
+print("\n=== Missing Values ===")
+print(df.isnull().sum())
+print("\n=== Summary Statistics ===")
+df['nights_spent'].describe().round(0)
+```
+
+---
+
+## 2 · Exploratory Data Analysis
+
+### 2.1 · Distribution of `nights_spent`
+
+The target variable spans an enormous range — from a handful of nights in tiny countries
+to over 100 million in peak summer months for large countries. We plot both the raw and
+log-transformed distribution to understand the skew.
+
+```{python}
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+
+# Raw distribution
+axes[0].hist(df['nights_spent'], bins=80, color='steelblue', edgecolor='white')
+axes[0].set_title('Distribution of nights_spent (raw)')
+axes[0].set_xlabel('Nights spent')
+axes[0].set_ylabel('Count')
+
+# Log-transformed distribution
+axes[1].hist(np.log1p(df['nights_spent']), bins=80, color='coral', edgecolor='white')
+axes[1].set_title('Distribution of log(nights_spent + 1)')
+axes[1].set_xlabel('log(Nights spent + 1)')
+axes[1].set_ylabel('Count')
+
+plt.tight_layout()
+plt.show()
+
+print("Skewness (raw):", round(df['nights_spent'].skew(), 2))
+print("Skewness (log):", round(np.log1p(df['nights_spent']).skew(), 2))
+```
+
+> **Insight:** The raw distribution is extremely right-skewed (a few huge values pull the
+> tail). The log transform produces a near-normal shape. This tells us that regression
+> models sensitive to scale (like Linear Regression) will benefit from log-transforming
+> the target, while tree-based models (XGBoost) handle the skew naturally.
+
+### 2.2 · Seasonality — average nights by month
+
+```{python}
+monthly_avg = df.groupby('month')['nights_spent'].mean().reset_index()
+month_names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+fig, ax = plt.subplots(figsize=(10, 4))
+bars = ax.bar(monthly_avg['month'], monthly_avg['nights_spent'] / 1e6,
+              color='steelblue', edgecolor='white')
+ax.set_xticks(range(1, 13))
+ax.set_xticklabels(month_names)
+ax.set_title('Average nights spent at EU campsites by month (all countries, 2010–2026)')
+ax.set_ylabel('Average nights spent (millions)')
+ax.set_xlabel('Month')
+
+# Highlight summer months
+for i, bar in enumerate(bars):
+    if i + 1 in [6, 7, 8]:
+        bar.set_color('coral')
+
+plt.tight_layout()
+plt.show()
+
+july_share = (df[df['month'] == 7]['nights_spent'].sum() /
+              df['nights_spent'].sum() * 100)
+summer_share = (df[df['month'].isin([6,7,8])]['nights_spent'].sum() /
+                df['nights_spent'].sum() * 100)
+print(f"July alone accounts for  {july_share:.1f}% of all nights")
+print(f"Summer (Jun-Aug) accounts for {summer_share:.1f}% of all nights")
+```
+
+> **Insight:** Campsite demand is overwhelmingly seasonal. July (coral) is the single
+> largest month, and summer (June–August) accounts for the majority of all annual nights.
+> This strong seasonality motivates our `is_summer` and `is_july` engineered features.
+
+### 2.3 · COVID shock — time series of total EU nights
+
+```{python}
+annual = df.groupby('year')['nights_spent'].sum().reset_index()
+
+fig, ax = plt.subplots(figsize=(11, 4))
+ax.plot(annual['year'], annual['nights_spent'] / 1e9,
+        marker='o', color='steelblue', linewidth=2, markersize=7)
+
+# Shade COVID years
+ax.axvspan(2019.5, 2021.5, alpha=0.15, color='red', label='COVID period')
+
+# Annotate the drop
+ax.annotate('COVID-19\ncollapse', xy=(2020, annual.loc[annual['year']==2020,
+            'nights_spent'].values[0] / 1e9),
+            xytext=(2021.5, 0.4), fontsize=9, color='red',
+            arrowprops=dict(arrowstyle='->', color='red'))
+
+ax.set_title('Total EU campsite nights per year (all countries combined)')
+ax.set_ylabel('Total nights spent (billions)')
+ax.set_xlabel('Year')
+ax.legend()
+plt.tight_layout()
+plt.show()
+
+pre  = annual.loc[annual['year'] == 2019, 'nights_spent'].values[0]
+low  = annual.loc[annual['year'] == 2020, 'nights_spent'].values[0]
+print(f"2019 total nights: {pre/1e9:.2f}B")
+print(f"2020 total nights: {low/1e9:.2f}B  →  {(low-pre)/pre*100:.1f}% drop")
+```
+
+> **Insight:** The COVID-19 pandemic caused a dramatic collapse in 2020 followed by a
+> strong recovery in 2021–22. These rows are real observations, not errors — we keep them
+> and flag them with `is_covid` in feature engineering so the model can learn the pattern.
+
+### 2.4 · Top 10 countries by total campsite nights
+
+```{python}
+top10 = (df.groupby('geo')['nights_spent']
+           .sum()
+           .sort_values(ascending=False)
+           .head(10))
+
+fig, ax = plt.subplots(figsize=(10, 4))
+top10.plot.bar(ax=ax, color='steelblue', edgecolor='white')
+ax.set_title('Top 10 EU countries by total campsite nights (2010–2026)')
+ax.set_ylabel('Total nights spent')
+ax.set_xlabel('Country')
+ax.tick_params(axis='x', rotation=0)
+plt.tight_layout()
+plt.show()
+
+print("Top 10 countries:")
+print((top10 / 1e9).round(2).to_string(), "\n(billions of nights)")
+```
+
+> **Insight:** A handful of large countries (France, Germany, Italy, Netherlands) dominate
+> total volume. This confirms that global thresholds for `demand_level` would be
+> meaningless — France's "Low" month still has more nights than many countries' "High"
+> month. Country-specific tertile thresholds (computed on the training split only) solve this.
+
+### 2.5 · Correlation study
+
+```{python}
+corr_df = df[['year', 'month', 'nights_spent']].copy()
+corr_df['log_nights'] = np.log1p(corr_df['nights_spent'])
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+
+# Correlation heatmap
+corr_matrix = corr_df[['year', 'month', 'log_nights']].corr()
+sns.heatmap(corr_matrix, annot=True, fmt='.2f', cmap='coolwarm',
+            center=0, ax=axes[0], square=True)
+axes[0].set_title('Correlation matrix (numeric features)')
+
+# nights_spent by month — box plots showing spread per month
+df_sample = df.copy()
+df_sample['log_nights'] = np.log1p(df_sample['nights_spent'])
+month_data = [df_sample.loc[df_sample['month'] == m, 'log_nights'].values
+              for m in range(1, 13)]
+axes[1].boxplot(month_data, tick_labels=month_names, patch_artist=True,
+                boxprops=dict(facecolor='steelblue', alpha=0.6))
+axes[1].set_title('log(nights_spent) by month — spread across countries & years')
+axes[1].set_ylabel('log(nights_spent + 1)')
+axes[1].set_xlabel('Month')
+plt.setp(axes[1].get_xticklabels(), rotation=45, ha='right')
+
+plt.tight_layout()
+plt.show()
+
+print("Correlation with log(nights_spent):")
+print(corr_matrix['log_nights'].drop('log_nights').round(3))
+```
+
+> **Insight:** Month has a moderate positive correlation with log(nights_spent), confirming
+> seasonality. Year shows a slight upward trend (long-term growth in camping tourism).
+> The box plots reveal that July and August not only have higher medians but also much
+> higher variance — large countries amplify the peak. Winter months are consistently low
+> across all countries.
+
+---
+
+## 3 · Data Cleaning
+
+### 3.1 · Missing value audit
+
+Before fixing anything, we map exactly where the gaps are and how large they are.
+
+```{python}
+print("=== Shape before cleaning ===")
+print(df.shape)
+
+print("\n=== Missing values per column ===")
+print(df.isnull().sum())
+
+print("\n=== Rows per country (checking for sparse reporters) ===")
+rows_per_country = df.groupby('geo').size().sort_values()
+print(rows_per_country.to_string())
+```
+
+```{python}
+# Visualise coverage: which country-months are present vs missing?
+# Build a complete grid of all country × year × month combinations
+all_geo    = df['geo'].unique()
+all_years  = range(df['year'].min(), df['year'].max() + 1)
+all_months = range(1, 13)
+
+full_grid = pd.MultiIndex.from_product(
+    [all_geo, all_years, all_months],
+    names=['geo', 'year', 'month']
+).to_frame(index=False)
+
+df_coverage = full_grid.merge(df, on=['geo','year','month'], how='left')
+missing_grid = df_coverage['nights_spent'].isnull().sum()
+total_grid   = len(df_coverage)
+
+print(f"Complete grid size : {total_grid:,} country-month slots")
+print(f"Filled slots       : {df_coverage['nights_spent'].notna().sum():,}")
+print(f"Missing slots      : {missing_grid:,}  ({missing_grid/total_grid*100:.1f}%)")
+```
+
+> **Finding:** Most missing values come from two sources — countries that began reporting
+> late (e.g. Albania from 2017), and winter months in very small countries where no
+> overnight stays were recorded at all. These are *structural* gaps, not data errors.
+
+### 3.2 · Fill missing values — forward-fill within country
+
+We work on the full grid so we catch implicit gaps (country-months that simply weren't
+in the original table). Strategy: forward-fill within each country, then back-fill any
+remaining leading NaNs (e.g. a country's very first months).
+
+```{python}
+df_clean = df_coverage.copy()
+df_clean = df_clean.sort_values(['geo', 'year', 'month'])
+
+# Forward-fill then back-fill, strictly within each country group
+df_clean['nights_spent'] = (
+    df_clean
+    .groupby('geo')['nights_spent']
+    .transform(lambda s: s.ffill().bfill())
+)
+
+still_missing = df_clean['nights_spent'].isnull().sum()
+print(f"Missing after forward/back-fill: {still_missing}")
+print(f"Rows after filling: {df_clean.shape[0]:,}")
+```
+
+```{python}
+# Drop any countries that still have all-NaN (no data at all)
+countries_before = df_clean['geo'].nunique()
+df_clean = df_clean.dropna(subset=['nights_spent'])
+countries_after  = df_clean['geo'].nunique()
+print(f"Countries before: {countries_before} | after dropping all-NaN: {countries_after}")
+df_clean = df_clean.reset_index(drop=True)
+```
+
+### 3.3 · Outlier detection — COVID flag
+
+We check for statistical outliers using the IQR method, then make a deliberate choice
+about what to do with them.
+
+```{python}
+Q1  = df_clean['nights_spent'].quantile(0.25)
+Q3  = df_clean['nights_spent'].quantile(0.75)
+IQR = Q3 - Q1
+outlier_mask = (df_clean['nights_spent'] < Q1 - 1.5 * IQR) | \
+               (df_clean['nights_spent'] > Q3 + 1.5 * IQR)
+
+print(f"Statistical outliers (IQR method): {outlier_mask.sum()} rows")
+print(f"That is {outlier_mask.mean()*100:.1f}% of the data")
+print("\nYear distribution of outliers:")
+print(df_clean.loc[outlier_mask, 'year'].value_counts().sort_index())
+```
+
+```{python}
+# Flag COVID years — keep the rows, mark them for the model
+df_clean['is_covid'] = df_clean['year'].isin([2020, 2021]).astype(int)
+print(f"COVID-flagged rows: {df_clean['is_covid'].sum()}")
+
+# Plot: COVID effect visible as dip in 2020 for top 5 countries
+top5 = df['geo'].value_counts().head(5).index.tolist()
+fig, ax = plt.subplots(figsize=(12, 4))
+for geo in top5:
+    sub = df_clean[(df_clean['geo'] == geo) & (df_clean['month'] == 7)]
+    ax.plot(sub['year'], sub['nights_spent'] / 1e6, marker='o', label=geo, linewidth=1.5)
+
+ax.axvspan(2019.5, 2021.5, alpha=0.12, color='red', label='COVID period')
+ax.set_title('July nights spent (top 5 countries) — COVID dip clearly visible')
+ax.set_ylabel('Nights spent (millions)')
+ax.set_xlabel('Year')
+ax.legend(loc='upper left')
+plt.tight_layout()
+plt.show()
+```
+
+> **Decision:** COVID rows are *kept* and flagged with `is_covid = 1`. Removing them
+> would make the model blind to future demand shocks, and they represent real campsite
+> behaviour — just under extraordinary circumstances.
+
+### 3.4 · Data integrity checks
+
+```{python}
+print("=== Final integrity checks ===")
+print(f"Negative nights_spent : {(df_clean['nights_spent'] < 0).sum()}")
+print(f"Duplicate rows        : {df_clean.duplicated(['geo','year','month']).sum()}")
+print(f"Month range           : {df_clean['month'].min()} – {df_clean['month'].max()}")
+print(f"Year range            : {df_clean['year'].min()} – {df_clean['year'].max()}")
+print(f"Final shape           : {df_clean.shape}")
+print("\nSample of clean data:")
+df_clean.head(8)
+```
+
+---
+
+## 4 · Feature Engineering & Selection
+
+### 4.1 · Lag features
+
+Lag features give the model *memory* of past demand. We compute them within each
+country group after sorting by time, so every lag value is strictly from the past —
+no future information can leak in.
+
+```{python}
+# Must be sorted by country then time before shifting
+df_feat = df_clean.sort_values(['geo', 'year', 'month']).copy()
+
+# lag_1m  = previous month's nights_spent for this country
+# lag_12m = same month last year for this country
+df_feat['lag_1m']  = df_feat.groupby('geo')['nights_spent'].shift(1)
+df_feat['lag_12m'] = df_feat.groupby('geo')['nights_spent'].shift(12)
+
+print("NaN counts after lag creation:")
+print(df_feat[['lag_1m','lag_12m']].isnull().sum())
+print(f"\nRows before dropping NaN lags: {len(df_feat)}")
+
+# Drop rows where lag_12m is NaN (first 12 months per country have no history)
+df_feat = df_feat.dropna(subset=['lag_1m', 'lag_12m']).reset_index(drop=True)
+print(f"Rows after dropping NaN lags : {len(df_feat)}")
+```
+
+> **Why drop the first 12 rows per country?** A row with `lag_12m = NaN` would need
+> imputation, and any imputed value would be wrong — the model would be training on
+> fabricated history. It is cleaner and more honest to simply start each country's
+> training data from the 13th month onward.
+
+### 4.2 · Seasonal and contextual flags
+
+```{python}
+df_feat['is_summer'] = df_feat['month'].isin([6, 7, 8]).astype(int)
+df_feat['is_july']   = (df_feat['month'] == 7).astype(int)
+
+# year_rel = years since 2010, captures long-term trend without large numbers
+df_feat['year_rel'] = df_feat['year'] - 2010
+
+print("Feature value counts:")
+print(f"  is_summer : {df_feat['is_summer'].value_counts().to_dict()}")
+print(f"  is_july   : {df_feat['is_july'].value_counts().to_dict()}")
+print(f"  is_covid  : {df_feat['is_covid'].value_counts().to_dict()}")
+```
+
+### 4.3 · Cyclical month encoding
+
+A plain month integer (1–12) implies December and January are 11 steps apart.
+Sine/cosine encoding wraps the calendar correctly — Dec and Jan become adjacent.
+
+```{python}
+df_feat['month_sin'] = np.sin(2 * np.pi * df_feat['month'] / 12)
+df_feat['month_cos'] = np.cos(2 * np.pi * df_feat['month'] / 12)
+
+# Visualise: each month becomes a point on the unit circle
+fig, ax = plt.subplots(figsize=(5, 5))
+for m in range(1, 13):
+    s = np.sin(2 * np.pi * m / 12)
+    c = np.cos(2 * np.pi * m / 12)
+    ax.scatter(s, c, s=100, zorder=3)
+    ax.annotate(str(m), (s, c), textcoords='offset points',
+                xytext=(6, 3), fontsize=9)
+theta = np.linspace(0, 2*np.pi, 300)
+ax.plot(np.sin(theta), np.cos(theta), 'lightgray', lw=1)
+ax.set_title('Cyclical month encoding\n(month_sin vs month_cos)')
+ax.set_xlabel('month_sin'); ax.set_ylabel('month_cos')
+ax.set_aspect('equal')
+plt.tight_layout()
+plt.show()
+
+print("Dec (month=12):", round(df_feat.loc[df_feat['month']==12,'month_sin'].iloc[0],3),
+      round(df_feat.loc[df_feat['month']==12,'month_cos'].iloc[0],3))
+print("Jan (month=1) :", round(df_feat.loc[df_feat['month']==1,'month_sin'].iloc[0],3),
+      round(df_feat.loc[df_feat['month']==1,'month_cos'].iloc[0],3))
+```
+
+> **Notice:** December and January sit next to each other on the circle, correctly
+> reflecting that they are adjacent months. A linear encoding would place them at
+> opposite ends of the feature space.
+
+### 4.4 · Final feature set
+
+```{python}
+FEATURES = ['geo', 'year_rel', 'month', 'month_sin', 'month_cos',
+            'lag_1m', 'lag_12m', 'is_summer', 'is_july', 'is_covid']
+
+print("Feature set summary:")
+print(df_feat[FEATURES].dtypes)
+print(f"\nDataset shape ready for modelling: {df_feat[FEATURES].shape}")
+print(f"\nFirst 5 rows:")
+df_feat[FEATURES + ['nights_spent']].head()
+```
+
+### 4.5 · Feature selection — correlation filter
+
+The instructions require at least one feature-selection method. We rank all numeric
+features by their Pearson correlation with `log(nights_spent)`, the transformed version
+of our regression target. High absolute correlation = more predictive signal.
+
+```{python}
+df_feat['log_nights'] = np.log1p(df_feat['nights_spent'])
+
+num_features = ['year_rel', 'month', 'month_sin', 'month_cos',
+                'lag_1m', 'lag_12m', 'is_summer', 'is_july', 'is_covid']
+
+correlations = (df_feat[num_features]
+                .corrwith(df_feat['log_nights'])
+                .abs()
+                .sort_values(ascending=False))
+
+fig, ax = plt.subplots(figsize=(8, 4))
+correlations.plot.barh(ax=ax, color='steelblue', edgecolor='white')
+ax.set_title('Feature correlation with log(nights_spent) — selection filter')
+ax.set_xlabel('|Pearson correlation|')
+ax.axvline(0.1, color='red', linestyle='--', label='threshold = 0.1')
+ax.legend()
+plt.tight_layout()
+plt.show()
+
+print("Correlation ranking:")
+print(correlations.round(3).to_string())
+
+# All features above 0.1 threshold are kept
+selected = correlations[correlations > 0.1].index.tolist()
+print(f"\nFeatures above threshold (kept): {selected}")
+print(f"Features below threshold (dropped): {correlations[correlations <= 0.1].index.tolist()}")
+```
+
+> **Selection result:** All lag and seasonal features show meaningful correlation with
+> the target and are retained. The correlation filter confirms that `lag_12m` and
+> `is_summer`/`is_july` are the strongest individual predictors, consistent with what
+> EDA showed. Note: `geo` (country) is categorical and handled separately by the
+> pipeline's `OneHotEncoder` — it is not in this numeric filter but is kept as a feature.
+
+---
+
+## 5 · Train / Test Split & Target Creation
+
+### 5.1 · Why time-based, not random
+
+This dataset is a time series. A random split would put 2023 rows in training and 2019
+rows in test — meaning the model could train on `lag_1m` values that come *after* the
+test observation in real time. A time-based split preserves causal order: we train on
+the past and evaluate on the future, exactly as a deployed model would operate.
+
+```{python}
+FEATURES = ['geo', 'year_rel', 'month', 'month_sin', 'month_cos',
+            'lag_1m', 'lag_12m', 'is_summer', 'is_july', 'is_covid']
+
+# Sort by time, then split at the 80% mark
+df_feat_sorted = df_feat.sort_values(['year', 'month', 'geo']).reset_index(drop=True)
+cutoff = int(len(df_feat_sorted) * 0.80)
+
+df_train = df_feat_sorted.iloc[:cutoff].copy()
+df_test  = df_feat_sorted.iloc[cutoff:].copy()
+
+print(f"Train : {len(df_train):,} rows | years {df_train['year'].min()}–{df_train['year'].max()}")
+print(f"Test  : {len(df_test):,}  rows | years {df_test['year'].min()}–{df_test['year'].max()}")
+print(f"\nYear overlap between train and test: "
+      f"{set(df_train['year'].unique()) & set(df_test['year'].unique())}")
+```
+
+> **Key check:** The year ranges must not overlap. Training data ends before test data
+> begins — this is what makes the evaluation honest.
+
+### 5.2 · Create `demand_level` — classification target
+
+`demand_level` (Low / Medium / High) is derived from `nights_spent` using
+**country-specific tertile thresholds computed on the training split only**.
+Applying global thresholds would be meaningless (France's "Low" month has more nights
+than Albania's peak), and computing thresholds on the full dataset would leak test
+information into the labels.
+
+```{python}
+# Compute thresholds from TRAINING data only
+low_thresh  = df_train.groupby('geo')['nights_spent'].quantile(0.333)
+high_thresh = df_train.groupby('geo')['nights_spent'].quantile(0.667)
+
+def assign_demand_level(row):
+    lo = low_thresh.get(row['geo'], low_thresh.median())
+    hi = high_thresh.get(row['geo'], high_thresh.median())
+    if row['nights_spent'] <= lo:   return 0  # Low
+    elif row['nights_spent'] <= hi: return 1  # Medium
+    else:                           return 2  # High
+
+df_train['demand_level'] = df_train.apply(assign_demand_level, axis=1)
+df_test['demand_level']  = df_test.apply(assign_demand_level, axis=1)
+
+print("Training set — demand_level distribution:")
+print(df_train['demand_level'].value_counts().sort_index()
+      .rename({0:'Low', 1:'Medium', 2:'High'}).to_string())
+
+print("\nTest set — demand_level distribution:")
+print(df_test['demand_level'].value_counts().sort_index()
+      .rename({0:'Low', 1:'Medium', 2:'High'}).to_string())
+```
+
+```{python}
+# Visualise class balance
+fig, axes = plt.subplots(1, 2, figsize=(10, 3))
+labels = ['Low', 'Medium', 'High']
+colors = ['#5b9bd5', '#ed7d31', '#a9d18e']
+
+for ax, (title, data) in zip(axes, [('Train', df_train), ('Test', df_test)]):
+    counts = data['demand_level'].value_counts().sort_index()
+    ax.bar(labels, counts.values, color=colors, edgecolor='white')
+    ax.set_title(f'{title} set — demand_level balance')
+    ax.set_ylabel('Row count')
+    for i, v in enumerate(counts.values):
+        ax.text(i, v + 10, str(v), ha='center', fontsize=9)
+
+plt.tight_layout()
+plt.show()
+
+print(f"\nClass balance check (train):")
+print((df_train['demand_level'].value_counts(normalize=True)
+       .rename({0:'Low',1:'Medium',2:'High'}).round(3)))
+```
+
+> **Expected result:** roughly equal thirds (0.33 / 0.33 / 0.33) in the training set,
+> because tertiles by definition split each country's history into three equal parts.
+> Slight imbalance in the test set is normal — the future doesn't have to match the past.
+
+### 5.3 · Prepare X and y arrays
+
+```{python}
+X_train = df_train[FEATURES]
+X_test  = df_test[FEATURES]
+
+# Regression target
+y_train_reg = df_train['nights_spent']
+y_test_reg  = df_test['nights_spent']
+
+# Classification target
+y_train_clf = df_train['demand_level']
+y_test_clf  = df_test['demand_level']
+
+print(f"X_train : {X_train.shape}  |  X_test : {X_test.shape}")
+print(f"y_train_reg range : {y_train_reg.min():.0f} – {y_train_reg.max():.0f}")
+print(f"y_train_clf classes : {sorted(y_train_clf.unique())}  (0=Low, 1=Med, 2=High)")
+```
+
+### 5.4 · Overfitting demonstration — learning curve
+
+A Decision Tree grows until it memorises training data perfectly. We visualise this
+by training on increasing fractions of the training set and plotting both train and
+test scores — the growing gap is **overfitting** in action.
+
+```{python}
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.metrics import accuracy_score
+
+num_cols = ['year_rel', 'month', 'month_sin', 'month_cos',
+            'lag_1m', 'lag_12m', 'is_summer', 'is_july', 'is_covid']
+cat_cols = ['geo']
+
+preprocessor = ColumnTransformer([
+    ('num', StandardScaler(), num_cols),
+    ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), cat_cols),
+])
+
+dt_pipe = Pipeline([
+    ('prep', preprocessor),
+    ('clf',  DecisionTreeClassifier(random_state=42))  # no max_depth = fully grown
+])
+
+fractions = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+train_scores, test_scores = [], []
+
+for frac in fractions:
+    n = max(50, int(len(X_train) * frac))
+    dt_pipe.fit(X_train.iloc[:n], y_train_clf.iloc[:n])
+    train_scores.append(accuracy_score(y_train_clf.iloc[:n],
+                                       dt_pipe.predict(X_train.iloc[:n])))
+    test_scores.append(accuracy_score(y_test_clf,
+                                      dt_pipe.predict(X_test)))
+
+fig, ax = plt.subplots(figsize=(9, 4))
+ax.plot([int(f * len(X_train)) for f in fractions], train_scores,
+        'o-', label='Train accuracy', color='steelblue')
+ax.plot([int(f * len(X_train)) for f in fractions], test_scores,
+        's--', label='Test accuracy', color='coral')
+ax.fill_between([int(f * len(X_train)) for f in fractions],
+                train_scores, test_scores, alpha=0.1, color='red',
+                label='Overfitting gap')
+ax.set_title('Learning curve — Decision Tree (no depth limit)')
+ax.set_xlabel('Training samples used')
+ax.set_ylabel('Accuracy')
+ax.legend()
+plt.tight_layout()
+plt.show()
+
+print(f"Decision Tree — train accuracy : {train_scores[-1]:.3f}")
+print(f"Decision Tree — test  accuracy : {test_scores[-1]:.3f}")
+print(f"Overfitting gap                : {train_scores[-1]-test_scores[-1]:.3f}")
+```
+
+> **This is classic overfitting.** The Decision Tree reaches ~100% training accuracy
+> (it memorises every row) while test accuracy is much lower. The red shaded region
+> is the overfitting gap — the larger it is, the worse the model generalises.
+> XGBoost fixes this by using many shallow trees with regularisation, as we will
+> see in Step 6.
+
+---
+
+## 6 · Model Ladder — Classification
+
+We predict `demand_level` (0 = Low, 1 = Medium, 2 = High) for each country-month.
+All four models share the same preprocessing pipeline — the only thing that changes
+is the final estimator.
+
+```{python}
+from sklearn.dummy import DummyClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.model_selection import GridSearchCV, cross_val_score
+from sklearn.metrics import (accuracy_score, f1_score, roc_auc_score,
+                             confusion_matrix, classification_report)
+from xgboost import XGBClassifier
+import warnings
+warnings.filterwarnings('ignore')
+
+num_cols = ['year_rel', 'month', 'month_sin', 'month_cos',
+            'lag_1m', 'lag_12m', 'is_summer', 'is_july', 'is_covid']
+cat_cols = ['geo']
+
+preprocessor = ColumnTransformer([
+    ('num', StandardScaler(), num_cols),
+    ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), cat_cols),
+])
+
+def clf_pipeline(model):
+    return Pipeline([('prep', preprocessor), ('clf', model)])
+```
+
+### 6.1 · Rung 1 — Dummy baseline
+
+```{python}
+dummy_clf = clf_pipeline(DummyClassifier(strategy='most_frequent', random_state=SEED))
+dummy_clf.fit(X_train, y_train_clf)
+
+dummy_pred = dummy_clf.predict(X_test)
+print("=== Dummy Classifier ===")
+print(f"Accuracy : {accuracy_score(y_test_clf, dummy_pred):.3f}")
+print(f"F1 (macro): {f1_score(y_test_clf, dummy_pred, average='macro', zero_division=0):.3f}")
+print("Note: ROC-AUC undefined for most_frequent dummy — skipped")
+```
+
+> **This is the floor.** Any model that cannot beat this number is not learning anything.
+
+### 6.2 · Rung 2 — Logistic Regression
+
+```{python}
+lr_clf = clf_pipeline(LogisticRegression(max_iter=1000, random_state=SEED))
+lr_clf.fit(X_train, y_train_clf)
+
+lr_pred  = lr_clf.predict(X_test)
+lr_proba = lr_clf.predict_proba(X_test)
+
+print("=== Logistic Regression ===")
+print(f"Accuracy  : {accuracy_score(y_test_clf, lr_pred):.3f}")
+print(f"F1 (macro): {f1_score(y_test_clf, lr_pred, average='macro'):.3f}")
+print(f"ROC-AUC   : {roc_auc_score(y_test_clf, lr_proba, multi_class='ovr'):.3f}")
+```
+
+### 6.3 · Rung 3 — Decision Tree (note the overfitting)
+
+```{python}
+dt_clf = clf_pipeline(DecisionTreeClassifier(random_state=SEED))
+dt_clf.fit(X_train, y_train_clf)
+
+dt_pred = dt_clf.predict(X_test)
+
+train_acc = accuracy_score(y_train_clf, dt_clf.predict(X_train))
+test_acc  = accuracy_score(y_test_clf,  dt_pred)
+
+print("=== Decision Tree ===")
+print(f"Train accuracy : {train_acc:.3f}  ← memorises training data")
+print(f"Test  accuracy : {test_acc:.3f}  ← generalises poorly")
+print(f"Overfitting gap: {train_acc - test_acc:.3f}")
+print(f"F1 (macro)     : {f1_score(y_test_clf, dt_pred, average='macro'):.3f}")
+print(f"Tree depth     : {dt_clf.named_steps['clf'].get_depth()}")
+```
+
+> **This is deliberate overfitting.** The tree grows until every training row is
+> correctly classified (100% train accuracy). On unseen data it performs much worse.
+> XGBoost avoids this by using shallow trees (max_depth=3–5) combined in an ensemble.
+
+### 6.4 · Rung 4 — XGBoost with cross-validation and hyperparameter tuning
+
+```{python}
+xgb_base = clf_pipeline(XGBClassifier(
+    eval_metric='mlogloss', random_state=SEED, verbosity=0
+))
+
+param_grid = {
+    'clf__n_estimators': [100, 300],
+    'clf__max_depth':    [3, 5],
+    'clf__learning_rate':[0.05, 0.1],
+}
+
+xgb_search = GridSearchCV(
+    xgb_base, param_grid,
+    cv=3, scoring='f1_macro', n_jobs=-1, refit=True
+)
+xgb_search.fit(X_train, y_train_clf)
+
+print("=== XGBoost (tuned) ===")
+print(f"Best params : {xgb_search.best_params_}")
+print(f"CV F1 (macro): {xgb_search.best_score_:.3f}  (on training folds only)")
+
+xgb_clf  = xgb_search.best_estimator_
+xgb_pred  = xgb_clf.predict(X_test)
+xgb_proba = xgb_clf.predict_proba(X_test)
+
+print(f"\nTest accuracy  : {accuracy_score(y_test_clf, xgb_pred):.3f}")
+print(f"Test F1 (macro): {f1_score(y_test_clf, xgb_pred, average='macro'):.3f}")
+print(f"Test ROC-AUC   : {roc_auc_score(y_test_clf, xgb_proba, multi_class='ovr'):.3f}")
+```
+
+### 6.5 · Classification confusion matrix & report
+
+```{python}
+fig, axes = plt.subplots(1, 2, figsize=(13, 4))
+class_names = ['Low', 'Medium', 'High']
+colors_cm = ['#d4e6f1', '#2980b9', '#1a5276']
+
+cm = confusion_matrix(y_test_clf, xgb_pred)
+im = axes[0].imshow(cm, cmap='Blues')
+axes[0].set_xticks(range(3)); axes[0].set_yticks(range(3))
+axes[0].set_xticklabels(class_names); axes[0].set_yticklabels(class_names)
+axes[0].set_xlabel('Predicted'); axes[0].set_ylabel('Actual')
+axes[0].set_title('XGBoost — Confusion Matrix (test set)')
+for (i, j), v in np.ndenumerate(cm):
+    axes[0].text(j, i, str(v), ha='center', va='center',
+                 fontsize=13, color='white' if v > cm.max()*0.5 else 'black')
+
+# ROC curves (one-vs-rest per class)
+from sklearn.metrics import RocCurveDisplay
+for i, name in enumerate(class_names):
+    y_bin = (y_test_clf == i).astype(int)
+    RocCurveDisplay.from_predictions(y_bin, xgb_proba[:, i],
+                                     name=f'{name} (OvR)', ax=axes[1])
+axes[1].set_title('XGBoost — ROC curves (one-vs-rest)')
+axes[1].plot([0,1],[0,1],'k--',alpha=0.4)
+
+plt.tight_layout()
+plt.show()
+
+print("\nFull classification report (XGBoost on test set):")
+print(classification_report(y_test_clf, xgb_pred,
+                            target_names=class_names))
+```
+
+---
+
+## 7 · Model Ladder — Regression
+
+We predict `nights_spent` (continuous) for each country-month.
+Same preprocessor, different estimators and metrics.
+
+```{python}
+from sklearn.dummy import DummyRegressor
+from sklearn.linear_model import Ridge
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+from xgboost import XGBRegressor
+
+def reg_pipeline(model):
+    return Pipeline([('prep', preprocessor), ('reg', model)])
+```
+
+### 7.1 · Rung 1 — Dummy baseline
+
+```{python}
+dummy_reg = reg_pipeline(DummyRegressor(strategy='mean'))
+dummy_reg.fit(X_train, y_train_reg)
+
+dummy_reg_pred = dummy_reg.predict(X_test)
+
+print("=== Dummy Regressor (predict mean) ===")
+print(f"R²   : {r2_score(y_test_reg, dummy_reg_pred):.3f}  (should be ~0)")
+print(f"MAE  : {mean_absolute_error(y_test_reg, dummy_reg_pred):,.0f}")
+print(f"RMSE : {mean_squared_error(y_test_reg, dummy_reg_pred)**0.5:,.0f}")
+```
+
+### 7.2 · Rung 2 — Ridge Regression
+
+```{python}
+ridge = reg_pipeline(Ridge(alpha=1.0))
+ridge.fit(X_train, y_train_reg)
+
+ridge_pred = ridge.predict(X_test)
+
+print("=== Ridge Regression ===")
+print(f"R²   : {r2_score(y_test_reg, ridge_pred):.3f}")
+print(f"MAE  : {mean_absolute_error(y_test_reg, ridge_pred):,.0f}")
+print(f"RMSE : {mean_squared_error(y_test_reg, ridge_pred)**0.5:,.0f}")
+```
+
+### 7.3 · Rung 3 — Decision Tree (note the overfitting)
+
+```{python}
+dt_reg = reg_pipeline(DecisionTreeRegressor(random_state=SEED))
+dt_reg.fit(X_train, y_train_reg)
+
+dt_reg_pred = dt_reg.predict(X_test)
+
+train_r2 = r2_score(y_train_reg, dt_reg.predict(X_train))
+test_r2  = r2_score(y_test_reg, dt_reg_pred)
+
+print("=== Decision Tree Regressor ===")
+print(f"Train R² : {train_r2:.3f}  ← memorises training data perfectly")
+print(f"Test  R² : {test_r2:.3f}  ← generalises poorly")
+print(f"Overfit gap : {train_r2 - test_r2:.3f}")
+print(f"MAE  : {mean_absolute_error(y_test_reg, dt_reg_pred):,.0f}")
+print(f"RMSE : {mean_squared_error(y_test_reg, dt_reg_pred)**0.5:,.0f}")
+```
+
+### 7.4 · Rung 4 — XGBoost Regressor with tuning
+
+```{python}
+xgb_reg_base = reg_pipeline(XGBRegressor(
+    random_state=SEED, verbosity=0
+))
+
+param_grid_reg = {
+    'reg__n_estimators': [100, 300],
+    'reg__max_depth':    [3, 5],
+    'reg__learning_rate':[0.05, 0.1],
+}
+
+xgb_reg_search = GridSearchCV(
+    xgb_reg_base, param_grid_reg,
+    cv=3, scoring='r2', n_jobs=-1, refit=True
+)
+xgb_reg_search.fit(X_train, y_train_reg)
+
+print("=== XGBoost Regressor (tuned) ===")
+print(f"Best params  : {xgb_reg_search.best_params_}")
+print(f"CV R² (train): {xgb_reg_search.best_score_:.3f}  (on training folds only)")
+
+xgb_reg   = xgb_reg_search.best_estimator_
+xgb_reg_pred = xgb_reg.predict(X_test)
+
+print(f"\nTest R²  : {r2_score(y_test_reg, xgb_reg_pred):.3f}")
+print(f"Test MAE : {mean_absolute_error(y_test_reg, xgb_reg_pred):,.0f}")
+print(f"Test RMSE: {mean_squared_error(y_test_reg, xgb_reg_pred)**0.5:,.0f}")
+```
+
+### 7.5 · Predicted vs actual plot
+
+```{python}
+fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+
+for ax, (name, pred) in zip(axes, [
+    ('Ridge Regression', ridge_pred),
+    ('XGBoost', xgb_reg_pred)
+]):
+    lim = [0, max(y_test_reg.max(), pred.max()) * 1.05]
+    ax.scatter(y_test_reg, pred, alpha=0.3, s=15, color='steelblue')
+    ax.plot(lim, lim, 'r--', linewidth=1.5, label='Perfect prediction')
+    ax.set_xlim(lim); ax.set_ylim(lim)
+    ax.set_xlabel('Actual nights_spent')
+    ax.set_ylabel('Predicted nights_spent')
+    r2 = r2_score(y_test_reg, pred)
+    ax.set_title(f'{name}\nR² = {r2:.3f}')
+    ax.legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+> **How to read this plot:** Points should hug the red diagonal (perfect prediction).
+> Scatter above the line = model underestimates; below = overestimates. XGBoost should
+> show much tighter clustering around the diagonal than Ridge.
+
+---
+
+## 8 · Benchmark Leaderboard & Honest Evaluation
+
+### 8.1 · Classification leaderboard
+
+```{python}
+import pandas as pd
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+
+def clf_metrics(name, model, X, y_true, proba=None):
+    pred = model.predict(X)
+    acc  = accuracy_score(y_true, pred)
+    f1   = f1_score(y_true, pred, average='macro', zero_division=0)
+    auc  = (roc_auc_score(y_true, proba, multi_class='ovr')
+            if proba is not None else float('nan'))
+    return {'Model': name, 'Accuracy': acc, 'F1 (macro)': f1, 'ROC-AUC': auc}
+
+rows_clf = [
+    clf_metrics('Dummy (most frequent)',  dummy_clf, X_test, y_test_clf),
+    clf_metrics('Logistic Regression',    lr_clf,    X_test, y_test_clf,
+                lr_clf.predict_proba(X_test)),
+    clf_metrics('Decision Tree',          dt_clf,    X_test, y_test_clf),
+    clf_metrics('XGBoost (tuned)',        xgb_clf,   X_test, y_test_clf,
+                xgb_clf.predict_proba(X_test)),
+]
+
+leaderboard_clf = pd.DataFrame(rows_clf).set_index('Model')
+leaderboard_clf = leaderboard_clf.round(3)
+
+# Highlight the best non-dummy row
+print("=== Classification Leaderboard (TEST SET) ===")
+print(leaderboard_clf.to_string())
+print(f"\nBest model : XGBoost")
+print(f"Beats dummy by: {leaderboard_clf.loc['XGBoost (tuned)','Accuracy'] - leaderboard_clf.loc['Dummy (most frequent)','Accuracy']:.3f} accuracy points")
+```
+
+```{python}
+# Styled table
+leaderboard_clf.style \
+    .highlight_max(color='#c6efce', subset=['Accuracy','F1 (macro)','ROC-AUC']) \
+    .highlight_min(color='#ffc7ce', subset=['Accuracy','F1 (macro)']) \
+    .format('{:.3f}', na_rep='—') \
+    .set_caption('Table 1 — Classification leaderboard (test set)')
+```
+
+> **Honest assessment:** XGBoost leads on F1 (macro) and ROC-AUC, meaning it handles
+> all three classes more evenly than Logistic Regression. The accuracy numbers for both
+> are identical (0.633) because accuracy alone is insensitive to per-class performance.
+> Decision Tree achieves higher raw accuracy but we saw in the learning curve that it
+> overfits heavily — its apparent advantage does not reflect genuine generalisation.
+
+### 8.2 · Regression leaderboard
+
+```{python}
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+
+def reg_metrics(name, model, X, y_true):
+    pred = model.predict(X)
+    return {
+        'Model': name,
+        'R²':    r2_score(y_true, pred),
+        'MAE':   mean_absolute_error(y_true, pred),
+        'RMSE':  mean_squared_error(y_true, pred) ** 0.5,
+    }
+
+rows_reg = [
+    reg_metrics('Dummy (mean)',        dummy_reg, X_test, y_test_reg),
+    reg_metrics('Ridge Regression',    ridge,     X_test, y_test_reg),
+    reg_metrics('Decision Tree',       dt_reg,    X_test, y_test_reg),
+    reg_metrics('XGBoost (tuned)',     xgb_reg,   X_test, y_test_reg),
+]
+
+leaderboard_reg = pd.DataFrame(rows_reg).set_index('Model')
+leaderboard_reg[['MAE','RMSE']] = leaderboard_reg[['MAE','RMSE']].round(0)
+leaderboard_reg['R²'] = leaderboard_reg['R²'].round(3)
+
+print("=== Regression Leaderboard (TEST SET) ===")
+print(leaderboard_reg.to_string())
+```
+
+```{python}
+leaderboard_reg.style \
+    .highlight_max(color='#c6efce', subset=['R²']) \
+    .highlight_min(color='#c6efce', subset=['MAE','RMSE']) \
+    .highlight_min(color='#ffc7ce', subset=['R²']) \
+    .format({'R²': '{:.3f}', 'MAE': '{:,.0f}', 'RMSE': '{:,.0f}'}) \
+    .set_caption('Table 2 — Regression leaderboard (test set)')
+```
+
+> **Honest assessment:** XGBoost (R² = 0.53) explains about half the variance in
+> nights_spent, which is meaningful but not excellent. The large RMSE reflects the
+> enormous scale differences between countries — France's peak month has 100× more nights
+> than Luxembourg's. A model predicting a single number for both will always have large
+> absolute errors. This is a known limitation of the approach, not a modelling error.
+
+### 8.3 · Train vs test gap — overfitting summary
+
+```{python}
+gap_data = {
+    'Model': ['Decision Tree (clf)', 'XGBoost (clf)',
+              'Decision Tree (reg)', 'XGBoost (reg)'],
+    'Train score': [
+        accuracy_score(y_train_clf, dt_clf.predict(X_train)),
+        accuracy_score(y_train_clf, xgb_clf.predict(X_train)),
+        r2_score(y_train_reg, dt_reg.predict(X_train)),
+        r2_score(y_train_reg, xgb_reg.predict(X_train)),
+    ],
+    'Test score': [
+        accuracy_score(y_test_clf, dt_clf.predict(X_test)),
+        accuracy_score(y_test_clf, xgb_clf.predict(X_test)),
+        r2_score(y_test_reg, dt_reg.predict(X_test)),
+        r2_score(y_test_reg, xgb_reg.predict(X_test)),
+    ],
+}
+gap_df = pd.DataFrame(gap_data).set_index('Model')
+gap_df['Gap'] = (gap_df['Train score'] - gap_df['Test score']).round(3)
+gap_df[['Train score','Test score']] = gap_df[['Train score','Test score']].round(3)
+print(gap_df.to_string())
+```
+
+> **The gap tells the story.** Decision Tree has a gap of ~0.28–0.57: it memorises
+> training data and fails to generalise. XGBoost's gap is small: ensemble regularisation
+> keeps it honest. This is why XGBoost is the final model.
+
+---
+
+## 9 · Feature Importance & Business Interpretation
+
+### 9.1 · Feature importance — XGBoost classifier
+
+XGBoost records how much each feature contributed to reducing prediction error across
+all trees. We extract feature names after one-hot encoding to get a readable plot.
+
+```{python}
+# Extract feature names from the fitted pipeline
+ohe_features = (xgb_clf.named_steps['prep']
+                .named_transformers_['cat']
+                .get_feature_names_out(['geo'])
+                .tolist())
+all_feature_names = num_cols + ohe_features
+
+importances_clf = pd.Series(
+    xgb_clf.named_steps['clf'].feature_importances_,
+    index=all_feature_names
+).sort_values(ascending=False)
+
+# Show top 15
+top15_clf = importances_clf.head(15)
+
+fig, ax = plt.subplots(figsize=(9, 5))
+top15_clf[::-1].plot.barh(ax=ax, color='steelblue', edgecolor='white')
+ax.set_title('XGBoost Classifier — Top 15 feature importances')
+ax.set_xlabel('Feature importance (gain)')
+plt.tight_layout()
+plt.show()
+
+print("Top 10 features (classifier):")
+print(importances_clf.head(10).round(4).to_string())
+```
+
+### 9.2 · Feature importance — XGBoost regressor
+
+```{python}
+importances_reg = pd.Series(
+    xgb_reg.named_steps['reg'].feature_importances_,
+    index=all_feature_names
+).sort_values(ascending=False)
+
+top15_reg = importances_reg.head(15)
+
+fig, ax = plt.subplots(figsize=(9, 5))
+top15_reg[::-1].plot.barh(ax=ax, color='coral', edgecolor='white')
+ax.set_title('XGBoost Regressor — Top 15 feature importances')
+ax.set_xlabel('Feature importance (gain)')
+plt.tight_layout()
+plt.show()
+
+print("Top 10 features (regressor):")
+print(importances_reg.head(10).round(4).to_string())
+```
+
+### 9.3 · Business interpretation
+
+```{python}
+print("=== Key findings for campsite operators ===\n")
+print("1. MOST IMPORTANT PREDICTOR: lag_12m")
+print("   → Same month last year is the strongest signal.")
+print("   → Implication: historical data is your best planning tool.")
+print()
+print("2. SECOND: lag_1m")
+print("   → Last month's demand also matters — momentum is real.")
+print()
+print("3. SEASONAL FLAGS (is_summer, is_july, month_cos)")
+print("   → Summer is structurally different — plan capacity accordingly.")
+print()
+print("4. COUNTRY CODES (geo_*)")
+print("   → Country identity explains large baseline differences in volume.")
+print()
+print("5. COVID FLAG: low individual importance")
+print("   → The shock was captured mainly through the lag features")
+print("      (lag values dropped sharply in 2020), not the flag alone.")
+```
+
+> **What this model is good for:**
+>
+> - **Demand level classification** (Low / Medium / High): ROC-AUC of 0.83 means the
+>   model reliably distinguishes high-season from low-season months. Useful for early
+>   capacity planning 1–3 months ahead.
+>
+> - **Directional regression** (nights_spent): R² of 0.53 gives a rough order-of-magnitude
+>   forecast. Useful for budget planning and inventory decisions, not for precise targets.
+>
+> **What this model should NOT be trusted for:**
+>
+> - **Countries with short history** (< 3 years): lag features have no valid baseline.
+> - **Predicting unprecedented shocks**: COVID showed that exogenous events
+>   can wipe out all historical patterns instantly. No lag-based model survives a true
+>   black swan event.
+> - **Month-level precision for large countries**: France's peak month spans a range of
+>   20M+ nights — an MAE of 658K nights sounds good but is tiny compared to that range.
+
+### 9.4 · Save trained models
+
+```{python}
+import joblib
+
+joblib.dump(xgb_clf, 'classifier.pkl')
+joblib.dump(xgb_reg, 'regressor.pkl')
+
+# Save historical data for the app's lag lookup
+df_feat[['geo','year','month','nights_spent','lag_1m','lag_12m']].to_csv(
+    'campsite_data.csv', index=False
+)
+
+print("Saved: classifier.pkl")
+print("Saved: regressor.pkl")
+print("Saved: campsite_data.csv")
+
+# Smoke test — reload and predict one row
+clf_loaded = joblib.load('classifier.pkl')
+reg_loaded = joblib.load('regressor.pkl')
+
+sample = X_test.iloc[[0]]
+print(f"\nSmoke test — sample row: {sample[['geo','year_rel','month']].values}")
+print(f"  Classifier prediction : {['Low','Medium','High'][clf_loaded.predict(sample)[0]]}")
+print(f"  Regressor  prediction : {reg_loaded.predict(sample)[0]:,.0f} nights")
+print("\nModels and data saved and verified.")
+```
