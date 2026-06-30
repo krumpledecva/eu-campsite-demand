@@ -150,7 +150,7 @@ Lag features use past data — a random split would leak future information.
 
 **Try it yourself:**
 
-→ The app is deployed at: `YOUR_APP_URL`
+→ The app is deployed at: [eu-campsite-demand.streamlit.app](https://eu-campsite-demand-k24656agpqkcrzba5cshaw.streamlit.app/)
 
 Select a country, year, and month — the model instantly returns:
 

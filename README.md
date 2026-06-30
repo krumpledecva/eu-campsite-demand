@@ -9,7 +9,7 @@ Built for the MADA (Modelling & Advanced Data Analysis) course at FELU.
 
 ## Live app
 
-**→ [Open the Streamlit app](YOUR_APP_URL)**
+**→ [Open the Streamlit app](https://eu-campsite-demand-k24656agpqkcrzba5cshaw.streamlit.app/)**
 
 Select a country, year, and month to get:
 - Demand level prediction (Low / Medium / High) with confidence scores
