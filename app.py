@@ -21,10 +21,9 @@ st.markdown("""
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap');
 
 /* Global */
-html, body, [class*="css"], p, div, span, label, input, select {
+html, body, [class*="css"], p, div, span, label, input, select, textarea {
     font-family: 'Nunito', sans-serif !important;
 }
-body { background-color: #f7f4f0; color: #2d2d2d; }
 
 /* Hide Streamlit chrome */
 #MainMenu { visibility: hidden; }
@@ -37,51 +36,94 @@ header    { visibility: hidden; }
     max-width: 100%;
 }
 
-/* Divider */
-.divider {
+/* ── Animations ── */
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50%       { transform: scale(1.12); }
+}
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-6px); }
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Hero banner ── */
+.hero-banner {
+    background: linear-gradient(135deg, #1B4332 0%, #0D1F17 100%);
+    border-radius: 16px;
+    padding: 2.2rem 2.8rem 2rem 2.8rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid #2d6a4f;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.hero-emoji {
+    font-size: 3rem;
+    display: inline-block;
+    animation: bounce 2.5s ease-in-out infinite;
+    margin-bottom: 0.4rem;
+}
+.hero-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #F0EAD6;
+    letter-spacing: -0.5px;
+    margin-bottom: 0.3rem;
+    line-height: 1.15;
+}
+.hero-sub {
+    font-size: 1rem;
+    color: #95D5B2;
+    font-weight: 400;
+}
+.golden-divider {
     border: none;
-    border-top: 1px solid #e2ddd8;
+    border-top: 2px solid #F4A261;
     margin: 1.4rem 0;
+    opacity: 0.6;
 }
 
-/* Section label */
-.section-label {
-    font-size: 0.7rem;
+/* ── Section headers ── */
+.section-header {
+    font-size: 1rem;
     font-weight: 700;
-    letter-spacing: 1.4px;
-    text-transform: uppercase;
-    color: #a89f96;
-    margin-bottom: 0.6rem;
+    color: #F0EAD6;
+    border-bottom: 2px solid #1B4332;
+    padding-bottom: 0.35rem;
+    margin-bottom: 1rem;
 }
 
-/* Lag box */
+/* ── Lag box ── */
 .lag-box {
-    background: #ffffff;
-    border: 1px solid #e8e2db;
+    background: #1B4332;
+    border: 1px solid #2d6a4f;
     border-radius: 12px;
-    padding: 0.8rem 1.1rem;
+    padding: 0.85rem 1.1rem;
     font-size: 0.9rem;
-    color: #555;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    color: #F0EAD6;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
-.lag-ok      { color: #3a7d44; font-weight: 700; }
-.lag-missing { color: #c0392b; }
+.lag-ok      { color: #95D5B2; font-weight: 700; }
+.lag-missing { color: #F4A261; }
 
-/* Result cards */
+/* ── Result cards ── */
 .result-card {
-    border: 1px solid #e8e2db;
+    background: #1B4332;
+    border: 1px solid #2d6a4f;
     border-radius: 12px;
     padding: 1.8rem 2rem;
     text-align: center;
-    background: #ffffff;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    animation: fadeIn 0.5s ease-out;
 }
 .result-label {
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 1.4px;
     text-transform: uppercase;
-    color: #a89f96;
+    color: #95D5B2;
     margin-bottom: 0.8rem;
 }
 .result-value-large {
@@ -89,11 +131,11 @@ header    { visibility: hidden; }
     font-weight: 800;
     line-height: 1.1;
 }
-.badge-low    { color: #3a7d44; }
-.badge-medium { color: #d4720a; }
-.badge-high   { color: #c0392b; }
+.badge-low    { color: #95D5B2; }
+.badge-medium { color: #52B788; }
+.badge-high   { color: #F4A261; }
 
-/* Probability bars */
+/* ── Probability bars ── */
 .prob-row {
     display: flex;
     align-items: center;
@@ -101,42 +143,64 @@ header    { visibility: hidden; }
     margin-bottom: 0.5rem;
     font-size: 0.88rem;
 }
-.prob-label { width: 52px; color: #777; font-weight: 600; }
+.prob-label { width: 56px; color: #95D5B2; font-weight: 600; }
 .prob-bar-bg {
     flex: 1;
-    background: #f0ece8;
+    background: #0D1F17;
     border-radius: 6px;
     height: 9px;
     overflow: hidden;
 }
 .prob-bar-fill { height: 100%; border-radius: 6px; }
-.prob-pct { width: 36px; text-align: right; color: #444; font-weight: 700; }
+.prob-pct { width: 36px; text-align: right; color: #F0EAD6; font-weight: 700; }
 
-/* Streamlit button */
+/* ── Chart wrapper ── */
+.chart-card {
+    background: #1B4332;
+    border: 1px solid #2d6a4f;
+    border-radius: 12px;
+    padding: 1.2rem 1.4rem;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    margin-bottom: 0.5rem;
+}
+
+/* ── Streamlit button ── */
 div.stButton > button {
     font-family: 'Nunito', sans-serif !important;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 1.05rem;
     border-radius: 12px;
-    padding: 0.6rem 1.5rem;
-    background: #3a7d44;
-    color: #ffffff;
+    padding: 0.65rem 1.5rem;
+    background: #F4A261;
+    color: #0D1F17;
     border: none;
-    box-shadow: 0 4px 12px rgba(58,125,68,0.25);
-    transition: background 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 14px rgba(244,162,97,0.35);
+    transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
 }
 div.stButton > button:hover {
-    background: #2f6638;
-    box-shadow: 0 6px 18px rgba(58,125,68,0.35);
+    background: #e8894a;
+    box-shadow: 0 6px 20px rgba(244,162,97,0.5);
+    transform: translateY(-1px);
 }
 
-/* Footer */
+/* ── Footer ── */
 .app-footer {
-    font-size: 0.75rem;
-    color: #b0a89f;
-    margin-top: 2rem;
+    text-align: center;
+    font-size: 0.78rem;
+    color: #F0EAD6;
+    margin-top: 2.5rem;
     padding-top: 1rem;
-    border-top: 1px solid #e2ddd8;
+    border-top: 2px solid #F4A261;
+    opacity: 0.7;
+}
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+    .block-container { padding: 1rem 1rem 1.5rem 1rem; }
+    .hero-title { font-size: 1.5rem; }
+    .hero-banner { padding: 1.4rem 1.4rem 1.2rem 1.4rem; }
+    .result-card { padding: 1.2rem 1rem; }
+    .result-value-large { font-size: 2rem; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -156,111 +220,32 @@ hist = load_data()
 COUNTRIES   = sorted(hist["geo"].unique().tolist())
 MONTH_NAMES = ["January","February","March","April","May","June",
                "July","August","September","October","November","December"]
-PROB_COLORS = ["#3a7d44", "#d4720a", "#c0392b"]
+PROB_COLORS = ["#95D5B2", "#52B788", "#F4A261"]
 
-# ── Hero banner (components.html renders raw SVG) ─────────────────────────────
-components.html("""
-<!DOCTYPE html>
-<html>
-<head>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700;800&display=swap" rel="stylesheet">
-<style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body { background:#f7f4f0; font-family:'Nunito',sans-serif; }
-.banner { background:#fff5f7; border-radius:16px; overflow:hidden;
-          box-shadow:0 4px 20px rgba(0,0,0,0.07); }
-.banner svg { width:100%; display:block; }
-.hero-content { padding:1.2rem 2.5rem 1.8rem 2.5rem; background:#fff5f7; }
-.hero-title { font-size:2rem; font-weight:800; color:#2d2d2d;
-              margin-bottom:0.3rem; letter-spacing:-0.5px; }
-.hero-sub   { font-size:1rem; color:#7a6f69; font-weight:400; }
-</style>
-</head>
-<body>
-<div class="banner">
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 180">
-    <rect width="1200" height="180" fill="#fff5f7"/>
-    <polygon points="0,160 150,45 300,160"    fill="none" stroke="#e0c8cf" stroke-width="1.5"/>
-    <polygon points="200,160 390,18 570,160"  fill="none" stroke="#e0c8cf" stroke-width="1.5"/>
-    <polygon points="500,160 690,50 870,160"  fill="none" stroke="#e0c8cf" stroke-width="1.5"/>
-    <polygon points="760,160 960,28 1110,160" fill="none" stroke="#e0c8cf" stroke-width="1.5"/>
-    <polygon points="980,160 1130,62 1200,160" fill="none" stroke="#e0c8cf" stroke-width="1.5"/>
-    <rect x="0" y="155" width="1200" height="25" fill="#f9eef1"/>
-    <circle cx="80" cy="42" r="22" fill="#ffffff" stroke="#2d2d2d" stroke-width="1.8"/>
-    <circle cx="91" cy="36" r="18" fill="#fff5f7"/>
-    <circle cx="28"  cy="18" r="2"   fill="#2d2d2d"/>
-    <circle cx="155" cy="14" r="1.5" fill="#2d2d2d"/>
-    <circle cx="238" cy="28" r="2"   fill="#2d2d2d"/>
-    <circle cx="950" cy="14" r="2"   fill="#2d2d2d"/>
-    <circle cx="1055" cy="38" r="1.5" fill="#2d2d2d"/>
-    <circle cx="1100" cy="18" r="2"  fill="#2d2d2d"/>
-    <circle cx="1155" cy="32" r="1.5" fill="#FFB3C6"/>
-    <rect x="178" y="138" width="9" height="22" fill="#2d2d2d"/>
-    <polygon points="182,78 200,140 164,140"  fill="#ffffff" stroke="#2d2d2d" stroke-width="2"/>
-    <polygon points="182,58 206,108 158,108"  fill="#ffffff" stroke="#2d2d2d" stroke-width="2"/>
-    <rect x="220" y="142" width="8" height="18" fill="#2d2d2d"/>
-    <polygon points="224,90 240,142 208,142"  fill="#ffffff" stroke="#2d2d2d" stroke-width="2"/>
-    <polygon points="224,72 244,114 204,114"  fill="#ffffff" stroke="#2d2d2d" stroke-width="2"/>
-    <polygon points="420,72 515,155 325,155"  fill="#FFD6E0" stroke="#2d2d2d" stroke-width="2.5"/>
-    <line x1="420" y1="72" x2="420" y2="155" stroke="#2d2d2d" stroke-width="1.5" stroke-dasharray="5,3"/>
-    <polygon points="420,118 447,155 393,155" fill="#ffffff" stroke="#2d2d2d" stroke-width="2"/>
-    <line x1="325" y1="155" x2="310" y2="170" stroke="#2d2d2d" stroke-width="1.5"/>
-    <line x1="515" y1="155" x2="530" y2="170" stroke="#2d2d2d" stroke-width="1.5"/>
-    <line x1="570" y1="154" x2="582" y2="154" stroke="#2d2d2d" stroke-width="2"/>
-    <line x1="576" y1="143" x2="570" y2="154" stroke="#2d2d2d" stroke-width="1.5"/>
-    <line x1="576" y1="143" x2="582" y2="154" stroke="#2d2d2d" stroke-width="1.5"/>
-    <ellipse cx="576" cy="141" rx="4" ry="7"  fill="#FFD6E0" stroke="#2d2d2d" stroke-width="1.5"/>
-    <rect x="610" y="140" width="9" height="20" fill="#2d2d2d"/>
-    <polygon points="614,80 634,142 594,142"  fill="#ffffff" stroke="#2d2d2d" stroke-width="2"/>
-    <polygon points="614,60 638,106 590,106"  fill="#ffffff" stroke="#2d2d2d" stroke-width="2"/>
-    <rect x="680" y="108" width="215" height="52" rx="5" fill="#FFD6E0" stroke="#2d2d2d" stroke-width="2.5"/>
-    <rect x="848" y="88"  width="50"  height="25" rx="4" fill="#ffffff" stroke="#2d2d2d" stroke-width="2"/>
-    <rect x="856" y="93"  width="32"  height="16" rx="3" fill="#e8f4ff" stroke="#2d2d2d" stroke-width="1.5"/>
-    <rect x="696" y="116" width="36"  height="22" rx="3" fill="#ffffff" stroke="#2d2d2d" stroke-width="1.5"/>
-    <rect x="742" y="116" width="26"  height="22" rx="3" fill="#ffffff" stroke="#2d2d2d" stroke-width="1.5"/>
-    <rect x="778" y="110" width="30"  height="42" rx="3" fill="#ffffff" stroke="#2d2d2d" stroke-width="1.5"/>
-    <circle cx="805" cy="132" r="2.5" fill="#2d2d2d"/>
-    <rect x="684" y="105" width="162" height="5"  rx="2" fill="#2d2d2d"/>
-    <line x1="684" y1="110" x2="638" y2="133" stroke="#2d2d2d" stroke-width="1.5"/>
-    <rect x="636" y="108" width="50"  height="6"  rx="2" fill="#FFD6E0" stroke="#2d2d2d" stroke-width="1.5"/>
-    <line x1="638" y1="114" x2="638" y2="133" stroke="#2d2d2d" stroke-width="1.5"/>
-    <circle cx="722" cy="163" r="14" fill="#2d2d2d"/>
-    <circle cx="722" cy="163" r="7"  fill="#888888"/>
-    <circle cx="722" cy="163" r="3"  fill="#ffffff"/>
-    <circle cx="848" cy="163" r="14" fill="#2d2d2d"/>
-    <circle cx="848" cy="163" r="7"  fill="#888888"/>
-    <circle cx="848" cy="163" r="3"  fill="#ffffff"/>
-    <rect x="950" y="138" width="9"  height="22" fill="#2d2d2d"/>
-    <polygon points="954,78 974,140 934,140"   fill="#ffffff" stroke="#2d2d2d" stroke-width="2"/>
-    <polygon points="954,58 978,106 930,106"   fill="#ffffff" stroke="#2d2d2d" stroke-width="2"/>
-    <rect x="992" y="144" width="8"  height="16" fill="#2d2d2d"/>
-    <polygon points="996,94 1012,146 980,146"  fill="#ffffff" stroke="#2d2d2d" stroke-width="2"/>
-    <polygon points="996,76 1016,118 976,118"  fill="#ffffff" stroke="#2d2d2d" stroke-width="2"/>
-    <path d="M 0,168 Q 600,158 1200,168" stroke="#e8c8d0" stroke-width="1" fill="none" stroke-dasharray="18,10"/>
-  </svg>
-  <div class="hero-content">
-    <div class="hero-title">&#x26FA; EU Campsite Demand Forecaster</div>
-    <div class="hero-sub">Predict demand level and overnight stays for any European country and month.</div>
-  </div>
+# ── Hero banner ───────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="hero-banner">
+  <div class="hero-emoji">⛺</div>
+  <div class="hero-title">EU Campsite Demand Forecaster</div>
+  <div class="hero-sub">Predict demand level and overnight stays for any European country and month.</div>
 </div>
-</body>
-</html>
-""", height=340, scrolling=False)
+""", unsafe_allow_html=True)
+st.markdown('<hr class="golden-divider">', unsafe_allow_html=True)
 
 # ── Inputs ────────────────────────────────────────────────────────────────────
-st.markdown('<div class="section-label">Select parameters</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-header">⛺ Select Parameters</div>', unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns([2, 1, 2])
 with col1:
-    country = st.selectbox("Country", COUNTRIES, index=COUNTRIES.index("FR"), label_visibility="collapsed")
+    country = st.selectbox("Country", COUNTRIES, index=COUNTRIES.index("FR"), label_visibility="visible")
 with col2:
-    year = st.number_input("Year", min_value=2010, max_value=2030, value=2025, label_visibility="collapsed")
+    year = st.number_input("Year", min_value=2010, max_value=2030, value=2025, label_visibility="visible")
 with col3:
     month = st.selectbox("Month", range(1, 13),
                          format_func=lambda m: MONTH_NAMES[m - 1],
-                         index=6, label_visibility="collapsed")
+                         index=6, label_visibility="visible")
 
-st.markdown('<hr class="divider">', unsafe_allow_html=True)
+st.markdown('<hr class="golden-divider">', unsafe_allow_html=True)
 
 # ── Lag lookup ────────────────────────────────────────────────────────────────
 def lookup_lag(geo, yr, mo, shift):
@@ -273,7 +258,7 @@ def lookup_lag(geo, yr, mo, shift):
 lag_1m_auto  = lookup_lag(country, year, month, 1)
 lag_12m_auto = lookup_lag(country, year, month, 12)
 
-st.markdown('<div class="section-label">Lag features</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-header">📊 Lag Features</div>', unsafe_allow_html=True)
 
 lcol1, lcol2 = st.columns(2)
 with lcol1:
@@ -281,21 +266,21 @@ with lcol1:
         st.markdown(f'<div class="lag-box"><span class="lag-ok">✓ Last month auto-loaded</span><br>{lag_1m_auto:,.0f} nights</div>', unsafe_allow_html=True)
         lag_1m = lag_1m_auto
     else:
-        st.markdown('<div class="section-label">Last month nights spent (enter manually)</div>', unsafe_allow_html=True)
-        lag_1m = st.number_input("lag_1m", min_value=0, value=50000, step=1000, label_visibility="collapsed")
+        lag_1m = st.number_input("Last month nights spent", min_value=0, value=50000, step=1000)
 
 with lcol2:
     if lag_12m_auto is not None:
         st.markdown(f'<div class="lag-box"><span class="lag-ok">✓ Same month last year auto-loaded</span><br>{lag_12m_auto:,.0f} nights</div>', unsafe_allow_html=True)
         lag_12m = lag_12m_auto
     else:
-        st.markdown('<div class="section-label">Same month last year (enter manually)</div>', unsafe_allow_html=True)
-        lag_12m = st.number_input("lag_12m", min_value=0, value=50000, step=1000, label_visibility="collapsed")
+        lag_12m = st.number_input("Same month last year", min_value=0, value=50000, step=1000)
 
-st.markdown('<hr class="divider">', unsafe_allow_html=True)
+st.markdown('<hr class="golden-divider">', unsafe_allow_html=True)
 
 # ── Predict button ────────────────────────────────────────────────────────────
-predict = st.button("Predict demand →", type="primary", use_container_width=True)
+_, bcol, _ = st.columns([1, 2, 1])
+with bcol:
+    predict = st.button("Predict 🔍", type="primary", use_container_width=True)
 
 if predict:
     X = pd.DataFrame([{
@@ -318,8 +303,16 @@ if predict:
     labels      = ["Low", "Medium", "High"]
     badge_class = ["badge-low", "badge-medium", "badge-high"]
 
-    st.markdown('<hr class="divider">', unsafe_allow_html=True)
-    st.markdown('<div class="section-label">Results</div>', unsafe_allow_html=True)
+    country_avg = hist[(hist["geo"] == country) & (hist["month"] == month)]["nights_spent"].mean()
+    if nights_pred > country_avg * 1.1:
+        interp = f"Above average for {country} in {MONTH_NAMES[month-1]}"
+    elif nights_pred < country_avg * 0.9:
+        interp = f"Below average for {country} in {MONTH_NAMES[month-1]}"
+    else:
+        interp = f"Around average for {country} in {MONTH_NAMES[month-1]}"
+
+    st.markdown('<hr class="golden-divider">', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">🔍 Results</div>', unsafe_allow_html=True)
 
     rc1, rc2, rc3 = st.columns([2, 0.15, 2])
 
@@ -327,9 +320,7 @@ if predict:
         st.markdown(f"""
         <div class="result-card">
             <div class="result-label">Demand Level</div>
-            <div class="result-value-large {badge_class[demand_code]}">
-                {labels[demand_code]}
-            </div>
+            <div class="result-value-large {badge_class[demand_code]}">{labels[demand_code]}</div>
             <div style="margin-top:1.4rem;">
         """, unsafe_allow_html=True)
 
@@ -351,48 +342,53 @@ if predict:
         st.markdown(f"""
         <div class="result-card">
             <div class="result-label">Estimated Nights Spent</div>
-            <div class="result-value-large" style="color:#2d2d2d;">
-                {nights_pred:,.0f}
+            <div class="result-value-large" style="color:#F4A261;">
+                ⛺ {nights_pred:,.0f}
             </div>
-            <div style="margin-top:0.6rem;font-size:0.82rem;color:#a89f96;">
-                {country} &middot; {MONTH_NAMES[month-1]} {year}
+            <div style="margin-top:0.8rem;font-size:0.88rem;color:#95D5B2;font-weight:600;">
+                {interp}
+            </div>
+            <div style="margin-top:0.4rem;font-size:0.78rem;color:#52B788;">
+                {country} · {MONTH_NAMES[month-1]} {year}
             </div>
         </div>
         """, unsafe_allow_html=True)
 
 # ── Historical chart ──────────────────────────────────────────────────────────
-st.markdown('<hr class="divider">', unsafe_allow_html=True)
-st.markdown(f'<div class="section-label">Historical trend — {country}</div>', unsafe_allow_html=True)
+st.markdown('<hr class="golden-divider">', unsafe_allow_html=True)
+st.markdown(f'<div class="section-header">📊 Historical Trend — {country}</div>', unsafe_allow_html=True)
 
 country_hist = hist[hist["geo"] == country].copy()
 country_hist["date"] = pd.to_datetime(country_hist[["year","month"]].assign(day=1))
 country_hist = country_hist.sort_values("date")
 
 if len(country_hist) > 0:
-    fig, ax = plt.subplots(figsize=(14, 3.2))
-    fig.patch.set_facecolor("#f7f4f0")
-    ax.set_facecolor("#f7f4f0")
+    fig, ax = plt.subplots(figsize=(14, 3.4))
+    fig.patch.set_facecolor("#1B4332")
+    ax.set_facecolor("#1B4332")
 
     ax.plot(country_hist["date"], country_hist["nights_spent"] / 1e6,
-            color="#3a7d44", linewidth=1.5, zorder=3)
+            color="#F4A261", linewidth=1.8, zorder=3)
     ax.fill_between(country_hist["date"], country_hist["nights_spent"] / 1e6,
-                    alpha=0.1, color="#3a7d44")
+                    alpha=0.15, color="#F4A261")
 
     ax.axvspan(pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31"),
-               alpha=0.08, color="#c0392b", zorder=1)
+               alpha=0.15, color="#95D5B2", zorder=1)
     ax.text(pd.Timestamp("2020-06-01"), ax.get_ylim()[1] * 0.92,
-            "COVID-19", fontsize=7.5, color="#c0392b", va="top")
+            "COVID-19", fontsize=7.5, color="#95D5B2", va="top")
 
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:.1f}M"))
     ax.set_xlabel("")
-    ax.set_ylabel("Nights spent", fontsize=8.5, color="#a89f96")
-    ax.tick_params(colors="#c0b8b0", labelsize=8)
+    ax.set_ylabel("Nights spent", fontsize=8.5, color="#95D5B2")
+    ax.tick_params(colors="#95D5B2", labelsize=8)
     for spine in ax.spines.values():
         spine.set_visible(False)
-    ax.grid(axis="y", color="#e8e2db", linewidth=0.8)
+    ax.grid(axis="y", color="#2d6a4f", linewidth=0.8)
 
     plt.tight_layout()
+    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
     st.pyplot(fig, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     plt.close()
 
 # ── Map ───────────────────────────────────────────────────────────────────────
@@ -411,28 +407,26 @@ COUNTRY_COORDS = {
     "TR": (38.9, 35.2, 6), "UK": (55.4, -3.4, 6),
 }
 
-st.markdown('<hr class="divider">', unsafe_allow_html=True)
-st.markdown(f'<div class="section-label">Location — {country}</div>', unsafe_allow_html=True)
+st.markdown('<hr class="golden-divider">', unsafe_allow_html=True)
+st.markdown(f'<div class="section-header">🗺️ Demand Across Europe — {country}</div>', unsafe_allow_html=True)
 
 lat, lon, zoom = COUNTRY_COORDS.get(country, (54.0, 15.0, 4))
 m = folium.Map(
     location=[lat, lon],
     zoom_start=zoom,
-    tiles="CartoDB positron",
+    tiles="CartoDB dark_matter",
     zoom_control=True,
     scrollWheelZoom=False,
 )
 folium.Marker(
     location=[lat, lon],
     tooltip=country,
-    icon=folium.Icon(color="green", icon="star"),
+    icon=folium.Icon(color="orange", icon="star"),
 ).add_to(m)
-st_folium(m, use_container_width=True, height=380, returned_objects=[])
+st_folium(m, use_container_width=True, height=400, returned_objects=[])
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown(
-    '<div class="app-footer">Data: Eurostat tour_occ_nim (CC BY 4.0) &nbsp;·&nbsp; '
-    'Model: XGBoost trained on 7,104 country-month observations &nbsp;·&nbsp; '
-    'Author: Nuša Brezovnik Bunderla</div>',
+    '<div class="app-footer">Built with ⛺ by Nuša Brezovnik Bunderla &nbsp;·&nbsp; Data: Eurostat CC BY 4.0</div>',
     unsafe_allow_html=True
 )
