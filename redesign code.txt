@@ -1,0 +1,74 @@
+Upgrade the visual design of my Streamlit app (app.py) to a photographic "nature-lodge" theme. Keep ALL functionality exactly as-is (predictor, historical chart, Country Comparison, Top Campsites map + cards, footer). Only change styling and the hero. Do not alter data loading, model calls, or logic.
+
+## 0. Assets
+- Create an `assets/` folder. I will drop a hero photo there named `hero.jpg` (a sunset mountain-path landscape).
+- Add a small helper at the top of app.py that base64-encodes a local image so it can be used as a CSS background:
+    import base64
+    from pathlib import Path
+    def img_b64(path):
+        p = Path(path)
+        return base64.b64encode(p.read_bytes()).decode() if p.exists() else ""
+- Use it for the hero background: f"data:image/jpeg;base64,{img_b64('assets/hero.jpg')}". If the file is missing, fall back to a CSS green gradient so the app never breaks.
+
+## 1. Color palette (replace the current bright-orange theme everywhere)
+- Page background: #26302A  (very dark forest)
+- Deep forest: #333F31
+- Card background: #3B4A3D  (with subtle border #4A5B4C)
+- Slate green: #445954
+- Accent / CTA / highlights: #8D8850  (olive gold — replaces the old #F4A261 orange)
+- Secondary accent: #8FA2A6  (dusty blue, for comparison line 2, links)
+- Text primary: #E7E9E4 (cream)  ·  Text muted: #A9B0A6
+- Demand levels: Low #95D5B2 · Medium #52B788 · High #C9A44C (warm gold)
+Update .streamlit/config.toml to match:
+[theme]
+base="dark"
+backgroundColor="#26302A"
+primaryColor="#8D8850"
+secondaryBackgroundColor="#3B4A3D"
+textColor="#E7E9E4"
+
+## 2. Fonts (via @import in the CSS block)
+- Headings / hero: "DM Serif Display" (elegant warm serif for the outdoor feel).
+- Body / UI / numbers: "Mulish".
+Apply serif to h1/h2 and card titles; Mulish to everything else.
+
+## 3. Hero banner — photographic
+Rebuild the top banner as a full-width block with the hero.jpg as a background-image (cover, center), a dark green gradient overlay (linear-gradient(rgba(38,48,42,.35), rgba(38,48,42,.85))) so text stays readable, border-radius:16px, padding ~3rem, box-shadow for depth. Inside, centered:
+- The ⛺ + "EU Campsite Demand Forecaster" title in DM Serif Display, cream, large (clamp(2rem,5vw,3.2rem)), gentle pulse animation on the tent emoji.
+- Subtitle in cream/80%: "Predict demand level and overnight stays for any European country and month."
+Thin olive divider (#8D8850) below the hero.
+
+## 4. Section headers (Inputs, Results, Historical Trend, Country Comparison, Top Campsites)
+Each via st.markdown: relevant emoji + bold serif text + a thin olive-gold underline (2px, #8D8850, ~64px wide). Consistent spacing above each section.
+
+## 5. Cards — restyle with the new palette
+- Result cards (Demand Level + Nights Spent): card bg #3B4A3D, 1px #4A5B4C border, radius 14px, box-shadow, smooth fade-in on appear. Demand badge/label uses the level colors above; probability bar fill uses the level color.
+- Country Comparison cards: same card style; keep the flag + demand dot + big serif level + nights + month line. Give the compared country's accent line the dusty-blue #8FA2A6 so the two are visually distinct.
+- Top Campsites cards: card bg #3B4A3D, radius 14px, gold stars (#C9A44C), "Visit website →" as an olive-gold pill button (radius 12px). If easy, add a thin olive top-border to each card.
+
+## 6. Buttons
+All buttons (Predict, Compare, Visit website): background #8D8850, cream text, radius 12px, subtle shadow, darken slightly on hover. Full-width for Predict, auto-width for Compare.
+
+## 7. Plotly charts (historical + comparison)
+- plot_bgcolor and paper_bgcolor = "#333F31"
+- All text/axis/tick/legend/gridline colors: #A9B0A6 (grid) / #E7E9E4 (text)
+- Line colors: primary series #C9A44C (gold), comparison series #8FA2A6 (dusty blue); soft filled area under lines. Keep the COVID-19 shaded band but tint it to a muted red at low opacity.
+- Wrap each chart in a card div (bg #333F31, radius 14px, subtle olive border, padding).
+
+## 8. Leaflet / Europe map
+Keep the dark CARTO tiles (they already fit). Ensure the section header above it reads "🗺️ Top Campsites in {country}" in the new style. Marker/star colors can stay.
+
+## 9. Mobile
+All st.columns must stack cleanly on narrow screens; use clamp()/rem for font sizes; ensure the hero and result/comparison cards never overflow. Add media queries in the CSS block if needed.
+
+## 10. Footer
+Centered, small cream text, olive-gold top border:
+"Built with ⛺ by Nuša Brezovnik Bunderla · Data: Eurostat CC BY 4.0"
+
+## CSS delivery
+Inject ALL custom CSS in ONE st.markdown("""<style>...</style>""", unsafe_allow_html=True) block near the top (fonts @import, palette variables as CSS custom properties, card/button/hero/section-header/footer rules, keyframes for pulse + fade-in, media queries).
+
+## After changes
+1. Run `streamlit run app.py` and confirm it starts with no errors; fix anything broken.
+2. Commit and push:
+   git add -A && git commit -m "Redesign v2: photographic hero, natural muted palette, serif headings, restyled cards & charts" && git push
