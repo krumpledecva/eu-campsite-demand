@@ -15,6 +15,20 @@ Select a country, year, and month to get:
 - Demand level prediction (Low / Medium / High) with confidence scores
 - Estimated nights spent forecast
 - Historical trend chart for the selected country
+- Top-rated campsites with map pins and prices
+- Country-vs-country comparison
+
+---
+
+## Deliverables
+
+| # | Deliverable | File |
+|---|------------|------|
+| D1 | Reproducible analysis report (Quarto → HTML) | `ml-analysis.qmd` / `ml-analysis.html` |
+| D2 | Deployed web app (Streamlit) | [Live app ↗](https://eu-campsite-demand-k24656agpqkcrzba5cshaw.streamlit.app/) |
+| D3 | AI-workflow reflection | `reflection.md` |
+| D4 | Presentation slides (Quarto reveal.js) | `slides.qmd` / `slides.html` |
+| D5 | Executive summary | `summary.md` |
 
 ---
 
@@ -51,6 +65,11 @@ quarto render ml-analysis.qmd
 This downloads fresh data from Eurostat, runs the full pipeline, and produces
 `ml-analysis.html` — the complete reproducible analysis report.
 
+### Render the slides
+```bash
+quarto render slides.qmd
+```
+
 ### Run the app locally
 ```bash
 streamlit run app.py
@@ -66,17 +85,19 @@ python generate_artifacts.py
 ## Project structure
 
 ```
-├── ml-analysis.qmd        # Full analysis report (Quarto → HTML)
-├── slides.qmd             # Presentation slides (Quarto reveal.js)
-├── app.py                 # Streamlit web app
+├── ml-analysis.qmd        # D1 — Full analysis report (Quarto → HTML)
+├── ml-analysis.html       # D1 — Rendered HTML report
+├── slides.qmd             # D4 — Presentation slides (Quarto reveal.js)
+├── slides.html            # D4 — Rendered slides (self-contained HTML)
+├── reflection.md          # D3 — AI workflow reflection
+├── summary.md             # D5 — Executive summary (plain language)
+├── app.py                 # D2 — Streamlit web app
 ├── generate_artifacts.py  # Regenerates pkl and csv from scratch
 ├── classifier.pkl         # Trained XGBoost classifier
 ├── regressor.pkl          # Trained XGBoost regressor
 ├── campsite_data.csv      # Historical data for lag lookups in the app
 ├── requirements.txt       # Python dependencies
-├── reflection.md          # D3 — AI workflow reflection
-├── summary.md             # D5 — Executive summary
-└── architecture.md        # System architecture description
+└── assets/                # Hero image folder (drop hero.jpg here)
 ```
 
 ---
