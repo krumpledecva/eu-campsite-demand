@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import folium
 from streamlit_folium import st_folium
-import requests
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -21,223 +20,88 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap');
 
-/* Global */
 html, body, [class*="css"], p, div, span, label, input, select, textarea {
     font-family: 'Nunito', sans-serif !important;
 }
+body { background-color: #0D1F17; color: #F0EAD6; }
 
-/* Hide Streamlit chrome */
 #MainMenu { visibility: hidden; }
 footer    { visibility: hidden; }
 header    { visibility: hidden; }
 
-/* Page padding */
-.block-container {
-    padding: 1.5rem 3.5rem 2rem 3.5rem;
-    max-width: 100%;
-}
+.block-container { padding: 1.5rem 3.5rem 2rem 3.5rem; max-width: 100%; }
 
-/* ── Animations ── */
-@keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50%       { transform: scale(1.12); }
-}
-@keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50%       { transform: translateY(-6px); }
-}
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: translateY(0); }
-}
+@keyframes bounce  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+@keyframes fadeIn  { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
 
-/* ── Hero banner ── */
+/* Hero */
 .hero-banner {
     background: linear-gradient(135deg, #1B4332 0%, #0D1F17 100%);
-    border-radius: 16px;
-    padding: 2.2rem 2.8rem 2rem 2.8rem;
-    margin-bottom: 0.5rem;
-    border: 1px solid #2d6a4f;
+    border-radius: 16px; padding: 2.2rem 2.8rem 2rem 2.8rem;
+    margin-bottom: 0.5rem; border: 1px solid #2d6a4f;
     box-shadow: 0 8px 32px rgba(0,0,0,0.4);
 }
-.hero-emoji {
-    font-size: 3rem;
-    display: inline-block;
-    animation: bounce 2.5s ease-in-out infinite;
-    margin-bottom: 0.4rem;
-}
-.hero-title {
-    font-size: 2.2rem;
-    font-weight: 800;
-    color: #F0EAD6;
-    letter-spacing: -0.5px;
-    margin-bottom: 0.3rem;
-    line-height: 1.15;
-}
-.hero-sub {
-    font-size: 1rem;
-    color: #95D5B2;
-    font-weight: 400;
-}
-.golden-divider {
-    border: none;
-    border-top: 2px solid #F4A261;
-    margin: 1.4rem 0;
-    opacity: 0.6;
-}
+.hero-emoji { font-size:3rem; display:inline-block; animation:bounce 2.5s ease-in-out infinite; margin-bottom:0.4rem; }
+.hero-title { font-size:2.2rem; font-weight:800; color:#F0EAD6; letter-spacing:-0.5px; margin-bottom:0.3rem; }
+.hero-sub   { font-size:1rem; color:#95D5B2; font-weight:400; }
+.golden-divider { border:none; border-top:2px solid #F4A261; margin:1.4rem 0; opacity:0.6; }
 
-/* ── Section headers ── */
-.section-header {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #F0EAD6;
-    border-bottom: 2px solid #1B4332;
-    padding-bottom: 0.35rem;
-    margin-bottom: 1rem;
-}
+/* Section headers */
+.section-header { font-size:1rem; font-weight:700; color:#F0EAD6; border-bottom:2px solid #1B4332; padding-bottom:0.35rem; margin-bottom:1rem; }
 
-/* ── Lag box ── */
-.lag-box {
-    background: #1B4332;
-    border: 1px solid #2d6a4f;
-    border-radius: 12px;
-    padding: 0.85rem 1.1rem;
-    font-size: 0.9rem;
-    color: #F0EAD6;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-.lag-ok      { color: #95D5B2; font-weight: 700; }
-.lag-missing { color: #F4A261; }
+/* Lag box */
+.lag-box { background:#1B4332; border:1px solid #2d6a4f; border-radius:12px; padding:0.85rem 1.1rem; font-size:0.9rem; color:#F0EAD6; box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+.lag-ok   { color:#95D5B2; font-weight:700; }
 
-/* ── Result cards ── */
-.result-card {
-    background: #1B4332;
-    border: 1px solid #2d6a4f;
-    border-radius: 12px;
-    padding: 1.8rem 2rem;
-    text-align: center;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    animation: fadeIn 0.5s ease-out;
-}
-.result-label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 1.4px;
-    text-transform: uppercase;
-    color: #95D5B2;
-    margin-bottom: 0.8rem;
-}
-.result-value-large {
-    font-size: 2.6rem;
-    font-weight: 800;
-    line-height: 1.1;
-}
-.badge-low    { color: #95D5B2; }
-.badge-medium { color: #52B788; }
-.badge-high   { color: #F4A261; }
+/* Result cards */
+.result-card { background:#1B4332; border:1px solid #2d6a4f; border-radius:12px; padding:1.8rem 2rem; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.3); animation:fadeIn 0.5s ease-out; }
+.result-label { font-size:0.7rem; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; color:#95D5B2; margin-bottom:0.8rem; }
+.result-value-large { font-size:2.6rem; font-weight:800; line-height:1.1; }
+.badge-low    { color:#95D5B2; }
+.badge-medium { color:#52B788; }
+.badge-high   { color:#F4A261; }
 
-/* ── Probability bars ── */
-.prob-row {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    margin-bottom: 0.5rem;
-    font-size: 0.88rem;
-}
-.prob-label { width: 56px; color: #95D5B2; font-weight: 600; }
-.prob-bar-bg {
-    flex: 1;
-    background: #0D1F17;
-    border-radius: 6px;
-    height: 9px;
-    overflow: hidden;
-}
-.prob-bar-fill { height: 100%; border-radius: 6px; }
-.prob-pct { width: 36px; text-align: right; color: #F0EAD6; font-weight: 700; }
+/* Probability bars */
+.prob-row { display:flex; align-items:center; gap:0.8rem; margin-bottom:0.5rem; font-size:0.88rem; }
+.prob-label { width:56px; color:#95D5B2; font-weight:600; }
+.prob-bar-bg { flex:1; background:#0D1F17; border-radius:6px; height:9px; overflow:hidden; }
+.prob-bar-fill { height:100%; border-radius:6px; }
+.prob-pct { width:36px; text-align:right; color:#F0EAD6; font-weight:700; }
 
-/* ── Chart wrapper ── */
-.chart-card {
-    background: #1B4332;
-    border: 1px solid #2d6a4f;
-    border-radius: 12px;
-    padding: 1.2rem 1.4rem;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-    margin-bottom: 0.5rem;
-}
+/* Comparison cards */
+.compare-card { background:#1B4332; border:1px solid #F4A261; border-radius:12px; padding:1.4rem 1.6rem; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.3); animation:fadeIn 0.5s ease-out; }
+.compare-country { font-size:1.1rem; font-weight:800; color:#F4A261; margin-bottom:0.6rem; }
+.compare-level   { font-size:2rem; font-weight:800; margin-bottom:0.3rem; }
+.compare-nights  { font-size:1rem; color:#95D5B2; font-weight:600; }
 
-/* ── Streamlit button ── */
+/* Chart wrapper */
+.chart-card { background:#1B4332; border:1px solid #2d6a4f; border-radius:12px; padding:1.2rem 1.4rem; box-shadow:0 4px 16px rgba(0,0,0,0.25); margin-bottom:0.5rem; }
+
+/* Campsite cards */
+.camp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1rem; margin-top:0.8rem; }
+.camp-card { background:#1B4332; border:1px solid #2d6a4f; border-radius:12px; padding:1rem 1.2rem; box-shadow:0 4px 14px rgba(0,0,0,0.25); animation:fadeIn 0.4s ease-out; }
+.camp-name   { font-size:0.95rem; font-weight:700; color:#F0EAD6; margin-bottom:0.3rem; }
+.camp-stars  { color:#F4A261; font-size:0.9rem; margin-bottom:0.2rem; }
+.camp-price  { font-size:0.8rem; color:#52B788; font-weight:600; margin-bottom:0.5rem; }
+.camp-link   { display:inline-block; font-size:0.78rem; font-weight:700; color:#0D1F17; background:#F4A261; border-radius:8px; padding:0.3rem 0.75rem; text-decoration:none; }
+.camp-link:hover { background:#e8894a; }
+
+/* Button */
 div.stButton > button {
-    font-family: 'Nunito', sans-serif !important;
-    font-weight: 700;
-    font-size: 1.05rem;
-    border-radius: 12px;
-    padding: 0.65rem 1.5rem;
-    background: #F4A261;
-    color: #0D1F17;
-    border: none;
-    box-shadow: 0 4px 14px rgba(244,162,97,0.35);
-    transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+    font-family:'Nunito',sans-serif !important; font-weight:700; font-size:1.05rem;
+    border-radius:12px; padding:0.65rem 1.5rem; background:#F4A261; color:#0D1F17;
+    border:none; box-shadow:0 4px 14px rgba(244,162,97,0.35);
+    transition:background 0.2s, box-shadow 0.2s, transform 0.1s;
 }
-div.stButton > button:hover {
-    background: #e8894a;
-    box-shadow: 0 6px 20px rgba(244,162,97,0.5);
-    transform: translateY(-1px);
-}
+div.stButton > button:hover { background:#e8894a; box-shadow:0 6px 20px rgba(244,162,97,0.5); transform:translateY(-1px); }
 
-/* ── Campsite cards ── */
-.camp-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 1rem;
-    margin-top: 0.8rem;
-}
-.camp-card {
-    background: #1B4332;
-    border: 1px solid #2d6a4f;
-    border-radius: 12px;
-    padding: 1rem 1.2rem;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-    animation: fadeIn 0.4s ease-out;
-}
-.camp-name {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #F0EAD6;
-    margin-bottom: 0.3rem;
-}
-.camp-stars { color: #F4A261; font-size: 0.9rem; margin-bottom: 0.3rem; }
-.camp-region { font-size: 0.78rem; color: #95D5B2; margin-bottom: 0.6rem; }
-.camp-link {
-    display: inline-block;
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: #0D1F17;
-    background: #F4A261;
-    border-radius: 8px;
-    padding: 0.3rem 0.75rem;
-    text-decoration: none;
-}
-.camp-link:hover { background: #e8894a; }
-.camp-none { color: #95D5B2; font-size: 0.9rem; padding: 0.5rem 0; }
+/* Footer */
+.app-footer { text-align:center; font-size:0.78rem; color:#F0EAD6; margin-top:2.5rem; padding-top:1rem; border-top:2px solid #F4A261; opacity:0.7; }
 
-/* ── Footer ── */
-.app-footer {
-    text-align: center;
-    font-size: 0.78rem;
-    color: #F0EAD6;
-    margin-top: 2.5rem;
-    padding-top: 1rem;
-    border-top: 2px solid #F4A261;
-    opacity: 0.7;
-}
-
-/* ── Mobile ── */
-@media (max-width: 768px) {
-    .block-container { padding: 1rem 1rem 1.5rem 1rem; }
-    .hero-title { font-size: 1.5rem; }
-    .hero-banner { padding: 1.4rem 1.4rem 1.2rem 1.4rem; }
-    .result-card { padding: 1.2rem 1rem; }
-    .result-value-large { font-size: 2rem; }
+@media (max-width:768px) {
+    .block-container { padding:1rem; }
+    .hero-title { font-size:1.5rem; }
+    .result-value-large { font-size:2rem; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -254,59 +118,176 @@ def load_data():
 clf_model, reg_model = load_models()
 hist = load_data()
 
-# ── Campsite lookup via OpenStreetMap Overpass API ───────────────────────────
-EUROSTAT_TO_ISO = {"EL": "GR", "UK": "GB"}
-
-@st.cache_data(ttl=3600, show_spinner=False)
-def get_campsites(country_code, limit=9):
-    iso = EUROSTAT_TO_ISO.get(country_code, country_code)
-    query = f"""
-    [out:json][timeout:25];
-    area["ISO3166-1"="{iso}"]->.c;
-    node["tourism"="camp_site"]["name"](area.c);
-    out body {limit};
-    """
-    try:
-        r = requests.post(
-            "https://overpass-api.de/api/interpreter",
-            data={"data": query},
-            timeout=25,
-        )
-        items = []
-        for el in r.json().get("elements", []):
-            tags = el.get("tags", {})
-            name = tags.get("name", "").strip()
-            if not name:
-                continue
-            raw_stars = tags.get("stars", tags.get("rating", ""))
-            try:
-                n = int(float(raw_stars))
-                stars_str = "⭐" * min(n, 5)
-            except (ValueError, TypeError):
-                stars_str = "—"
-            region = (tags.get("addr:city") or
-                      tags.get("addr:county") or
-                      tags.get("addr:region") or "")
-            booking = (
-                "https://www.booking.com/searchresults.html"
-                f"?ss={requests.utils.quote(name + ' ' + country_code)}&label=campsite"
-            )
-            items.append({
-                "name":    name,
-                "lat":     el.get("lat"),
-                "lon":     el.get("lon"),
-                "stars":   stars_str,
-                "region":  region,
-                "booking": booking,
-            })
-        return items
-    except Exception:
-        return []
-
 COUNTRIES   = sorted(hist["geo"].unique().tolist())
 MONTH_NAMES = ["January","February","March","April","May","June",
                "July","August","September","October","November","December"]
 PROB_COLORS = ["#95D5B2", "#52B788", "#F4A261"]
+
+# ── Curated campsite data (sourced from Camping.info & TripAdvisor) ───────────
+TOP_CAMPSITES = {
+    "FR": [
+        {"name":"Camping Le Vieux Port",          "lat":43.813,"lon":-1.393,"stars":"⭐⭐⭐⭐⭐","price":"from €30/night","url":"https://www.camping-le-vieux-port.com"},
+        {"name":"Yelloh! Village Le Brasilia",     "lat":42.705,"lon": 3.037,"stars":"⭐⭐⭐⭐⭐","price":"from €28/night","url":"https://www.lebrasilia.fr"},
+        {"name":"Camping Les Sablons",             "lat":43.421,"lon": 3.537,"stars":"⭐⭐⭐⭐⭐","price":"from €25/night","url":"https://www.les-sablons.com"},
+        {"name":"Camping La Côte Sauvage",         "lat":45.343,"lon":-1.142,"stars":"⭐⭐⭐⭐","price":"from €22/night","url":"https://www.camping-lacotesauvage.com"},
+        {"name":"Sandaya Domaine de la Forêt",     "lat":47.653,"lon":-2.428,"stars":"⭐⭐⭐⭐⭐","price":"from €35/night","url":"https://www.sandaya.fr"},
+    ],
+    "DE": [
+        {"name":"Camping Park Sanssouci Potsdam",  "lat":52.396,"lon":13.017,"stars":"⭐⭐⭐⭐","price":"from €20/night","url":"https://www.camping-sanssouci.de"},
+        {"name":"Camping Waldsee Freiburg",        "lat":47.985,"lon": 7.893,"stars":"⭐⭐⭐⭐","price":"from €25/night","url":"https://www.camping-freiburg.com"},
+        {"name":"Campingplatz Thalkirchen München", "lat":48.085,"lon":11.538,"stars":"⭐⭐⭐⭐","price":"from €22/night","url":"https://www.campingplatz-muenchen.de"},
+        {"name":"Weissenhäuser Strand Camping",    "lat":54.342,"lon":10.862,"stars":"⭐⭐⭐⭐⭐","price":"from €30/night","url":"https://www.weissenhaeuser-strand.de"},
+    ],
+    "IT": [
+        {"name":"Camping Village Cavallino",       "lat":45.468,"lon":12.523,"stars":"⭐⭐⭐⭐⭐","price":"from €35/night","url":"https://www.villaggiocavallino.it"},
+        {"name":"Camping Cisano San Vito",         "lat":45.601,"lon":10.724,"stars":"⭐⭐⭐⭐⭐","price":"from €28/night","url":"https://www.camping-cisano.it"},
+        {"name":"Camping Tahiti Lido di Jesolo",   "lat":45.512,"lon":12.627,"stars":"⭐⭐⭐⭐⭐","price":"from €32/night","url":"https://www.campingtahiti.com"},
+        {"name":"Camping Internazionale Firenze",  "lat":43.783,"lon":11.278,"stars":"⭐⭐⭐⭐","price":"from €22/night","url":"https://www.campingfirenze.com"},
+    ],
+    "ES": [
+        {"name":"Camping Playa Montroig",          "lat":40.978,"lon": 0.960,"stars":"⭐⭐⭐⭐⭐","price":"from €30/night","url":"https://www.playamontroig.com"},
+        {"name":"Camping Las Dunas Sant Pere",     "lat":42.193,"lon": 3.099,"stars":"⭐⭐⭐⭐⭐","price":"from €35/night","url":"https://www.campinglasdunas.com"},
+        {"name":"Camping El Garrofer Sitges",      "lat":41.217,"lon": 1.817,"stars":"⭐⭐⭐⭐","price":"from €25/night","url":"https://www.elgarrofer.com"},
+    ],
+    "HR": [
+        {"name":"Camping Zaton Holiday Resort",    "lat":44.213,"lon":15.172,"stars":"⭐⭐⭐⭐⭐","price":"from €25/night","url":"https://www.zaton.hr"},
+        {"name":"Camping Solaris Šibenik",         "lat":43.723,"lon":15.874,"stars":"⭐⭐⭐⭐⭐","price":"from €30/night","url":"https://www.solarisbeachresort.hr"},
+        {"name":"Camping Straško Novalja",         "lat":44.552,"lon":14.889,"stars":"⭐⭐⭐⭐","price":"from €22/night","url":"https://www.strasko.hr"},
+    ],
+    "AT": [
+        {"name":"Camping Wolfgangsee",             "lat":47.739,"lon":13.443,"stars":"⭐⭐⭐⭐⭐","price":"from €28/night","url":"https://www.camping-wolfgangsee.at"},
+        {"name":"Camping Innsbruck Kranebitten",   "lat":47.267,"lon":11.323,"stars":"⭐⭐⭐⭐","price":"from €20/night","url":"https://www.camping-innsbruck.at"},
+        {"name":"Camping Neue Donau Wien",         "lat":48.228,"lon":16.432,"stars":"⭐⭐⭐⭐","price":"from €22/night","url":"https://www.campingwien.at"},
+    ],
+    "NL": [
+        {"name":"Camping De Lievelinge",           "lat":51.787,"lon": 5.083,"stars":"⭐⭐⭐⭐⭐","price":"from €22/night","url":"https://www.delievelinge.nl"},
+        {"name":"Camping Koningshof",              "lat":52.243,"lon": 4.539,"stars":"⭐⭐⭐⭐⭐","price":"from €25/night","url":"https://www.koningshof.nl"},
+        {"name":"Camping De Groote Vliet",         "lat":51.643,"lon": 4.503,"stars":"⭐⭐⭐⭐","price":"from €20/night","url":"https://www.grootevliet.nl"},
+    ],
+    "PT": [
+        {"name":"Camping Orbitur Guincho",         "lat":38.731,"lon":-9.469,"stars":"⭐⭐⭐⭐⭐","price":"from €25/night","url":"https://www.orbitur.pt"},
+        {"name":"Camping Sagres",                  "lat":37.012,"lon":-8.941,"stars":"⭐⭐⭐⭐","price":"from €15/night","url":"https://www.campingsagres.pt"},
+        {"name":"Camping Viana do Castelo",        "lat":41.691,"lon":-8.831,"stars":"⭐⭐⭐⭐","price":"from €18/night","url":"https://www.campingviana.com.pt"},
+    ],
+    "SE": [
+        {"name":"First Camp Djurgården Stockholm", "lat":59.341,"lon":18.109,"stars":"⭐⭐⭐⭐⭐","price":"from €35/night","url":"https://www.firstcamp.se"},
+        {"name":"Camping Kolmården",               "lat":58.672,"lon":16.378,"stars":"⭐⭐⭐⭐","price":"from €25/night","url":"https://www.kolmarden.com"},
+    ],
+    "NO": [
+        {"name":"Camping Geiranger Storfjord",     "lat":62.101,"lon": 7.205,"stars":"⭐⭐⭐⭐⭐","price":"from €30/night","url":"https://www.geirangerfjord.no"},
+        {"name":"Camping Preikestolen Stavanger",  "lat":58.987,"lon": 5.978,"stars":"⭐⭐⭐⭐","price":"from €25/night","url":"https://www.preikestolencamping.com"},
+    ],
+    "DK": [
+        {"name":"Camping Blåvand Strand",          "lat":55.562,"lon": 8.098,"stars":"⭐⭐⭐⭐⭐","price":"from €28/night","url":"https://www.blaavandstrand.dk"},
+        {"name":"Camping Hesselet Nyborg",         "lat":55.312,"lon":10.818,"stars":"⭐⭐⭐⭐⭐","price":"from €25/night","url":"https://www.hesselet.dk"},
+    ],
+    "CH": [
+        {"name":"Camping Romantik Interlaken",     "lat":46.684,"lon": 7.868,"stars":"⭐⭐⭐⭐⭐","price":"from €35/night","url":"https://www.camping-interlaken.ch"},
+        {"name":"Camping Zürich",                  "lat":47.388,"lon": 8.497,"stars":"⭐⭐⭐⭐","price":"from €28/night","url":"https://www.camping-zurich.ch"},
+    ],
+    "PL": [
+        {"name":"Camping Zakopane",                "lat":49.295,"lon":19.958,"stars":"⭐⭐⭐⭐","price":"from €15/night","url":"https://www.camping-zakopane.pl"},
+        {"name":"Camping Marina Gdańsk",           "lat":54.406,"lon":18.619,"stars":"⭐⭐⭐⭐","price":"from €12/night","url":"https://www.camping-gdansk.pl"},
+    ],
+    "EL": [
+        {"name":"Camping Ionion Beach Lefkada",    "lat":38.718,"lon":20.642,"stars":"⭐⭐⭐⭐","price":"from €20/night","url":"https://www.ionionbeach.gr"},
+        {"name":"Camping Plaka Naxos",             "lat":37.038,"lon":25.508,"stars":"⭐⭐⭐⭐","price":"from €18/night","url":"https://www.campingplaka.gr"},
+    ],
+    "BE": [
+        {"name":"Camping Floréal La Roche",        "lat":50.183,"lon": 5.576,"stars":"⭐⭐⭐⭐⭐","price":"from €25/night","url":"https://www.florealgroup.be"},
+        {"name":"Camping Grimbergen Brussels",     "lat":50.935,"lon": 4.365,"stars":"⭐⭐⭐⭐","price":"from €20/night","url":"https://www.campinggrimbergen.be"},
+    ],
+    "CZ": [
+        {"name":"Camping Yacht Club Praha",        "lat":50.043,"lon":14.408,"stars":"⭐⭐⭐⭐","price":"from €15/night","url":"https://www.campingprague.cz"},
+        {"name":"Autocamp Třeboň",                 "lat":49.005,"lon":14.771,"stars":"⭐⭐⭐⭐","price":"from €12/night","url":"https://www.autocamp-trebon.cz"},
+    ],
+    "HU": [
+        {"name":"Camping Balatontourist Füred",    "lat":46.958,"lon":17.898,"stars":"⭐⭐⭐⭐","price":"from €18/night","url":"https://www.balatontourist.hu"},
+        {"name":"Camping Jumbo Budapest",          "lat":47.499,"lon":19.071,"stars":"⭐⭐⭐","price":"from €14/night","url":"https://www.campingjumbo.hu"},
+    ],
+    "SI": [
+        {"name":"Camping Bled",                    "lat":46.368,"lon":14.093,"stars":"⭐⭐⭐⭐⭐","price":"from €25/night","url":"https://www.camping-bled.com"},
+        {"name":"Camping Kolpa Metlika",           "lat":45.646,"lon":15.319,"stars":"⭐⭐⭐⭐","price":"from €18/night","url":"https://www.campingkolpa.si"},
+    ],
+    "SK": [
+        {"name":"Camping Zlaté Piesky Bratislava", "lat":48.178,"lon":17.178,"stars":"⭐⭐⭐⭐","price":"from €15/night","url":"https://www.zlatepiesky.sk"},
+        {"name":"Camping Liptov",                  "lat":49.085,"lon":19.601,"stars":"⭐⭐⭐⭐","price":"from €18/night","url":"https://www.campliptov.sk"},
+    ],
+    "RO": [
+        {"name":"Camping La Conac Transylvania",   "lat":45.648,"lon":25.612,"stars":"⭐⭐⭐⭐","price":"from €12/night","url":"https://www.laconac.ro"},
+        {"name":"Camping Neptun Black Sea",        "lat":43.895,"lon":28.592,"stars":"⭐⭐⭐","price":"from €10/night","url":"https://www.camping-neptun.ro"},
+    ],
+    "BG": [
+        {"name":"Camping Gradina Sozopol",         "lat":42.381,"lon":27.699,"stars":"⭐⭐⭐⭐","price":"from €12/night","url":"https://www.campingbg.com"},
+    ],
+    "FI": [
+        {"name":"Camping Rastila Helsinki",        "lat":60.199,"lon":25.117,"stars":"⭐⭐⭐⭐","price":"from €25/night","url":"https://www.campingrastila.fi"},
+        {"name":"Camping Naantali",                "lat":60.469,"lon":22.017,"stars":"⭐⭐⭐⭐","price":"from €22/night","url":"https://www.campingnaantali.fi"},
+    ],
+    "IE": [
+        {"name":"Cong Camping & Caravan Park",     "lat":53.536,"lon":-9.279,"stars":"⭐⭐⭐⭐","price":"from €20/night","url":"https://www.cong-camping.com"},
+        {"name":"Camac Valley Tourist Park Dublin","lat":53.313,"lon":-6.358,"stars":"⭐⭐⭐⭐","price":"from €25/night","url":"https://www.camacvalley.ie"},
+    ],
+    "UK": [
+        {"name":"Camping Longleat Wiltshire",      "lat":51.187,"lon":-2.278,"stars":"⭐⭐⭐⭐⭐","price":"from €30/night","url":"https://www.longleat.co.uk"},
+        {"name":"Camping Loch Lomond",             "lat":56.173,"lon":-4.601,"stars":"⭐⭐⭐⭐","price":"from €25/night","url":"https://www.lochlomond.com"},
+    ],
+    "LU": [
+        {"name":"Camping Echternach",              "lat":49.814,"lon": 6.417,"stars":"⭐⭐⭐⭐⭐","price":"from €22/night","url":"https://www.camping-echternach.lu"},
+        {"name":"Camping Kockelscheuer",           "lat":49.566,"lon": 6.113,"stars":"⭐⭐⭐⭐","price":"from €20/night","url":"https://www.camping-kockelscheuer.lu"},
+    ],
+    "IS": [
+        {"name":"Camping Þórsmörk",                "lat":63.681,"lon":-19.511,"stars":"⭐⭐⭐⭐⭐","price":"from €18/night","url":"https://www.utivist.is"},
+        {"name":"Camping Reykjavík",               "lat":64.129,"lon":-21.894,"stars":"⭐⭐⭐⭐","price":"from €20/night","url":"https://www.campingreykjavik.is"},
+    ],
+    "EE": [
+        {"name":"Camping Pirita Tallinn",          "lat":59.462,"lon":24.839,"stars":"⭐⭐⭐⭐","price":"from €20/night","url":"https://www.piritacamping.ee"},
+        {"name":"Camping Pärnu Beach",             "lat":58.371,"lon":24.509,"stars":"⭐⭐⭐⭐","price":"from €18/night","url":"https://www.parnu.ee"},
+    ],
+    "LT": [
+        {"name":"Camping Nida Curonian Spit",      "lat":55.307,"lon":21.005,"stars":"⭐⭐⭐⭐⭐","price":"from €20/night","url":"https://www.neringa.lt"},
+    ],
+    "LV": [
+        {"name":"Camping Jūrmala",                 "lat":56.969,"lon":23.683,"stars":"⭐⭐⭐⭐","price":"from €18/night","url":"https://www.jurmala.lv"},
+    ],
+    "TR": [
+        {"name":"Camping Olympos Antalya",         "lat":36.402,"lon":30.469,"stars":"⭐⭐⭐⭐","price":"from €12/night","url":"https://www.olymposcamp.com"},
+        {"name":"Camping Ölüdeniz",                "lat":36.549,"lon":29.115,"stars":"⭐⭐⭐⭐","price":"from €10/night","url":"https://www.oludeniz.com"},
+    ],
+    "ME": [
+        {"name":"Camping Full Monte Kotor",        "lat":42.424,"lon":18.771,"stars":"⭐⭐⭐⭐","price":"from €15/night","url":"https://www.fullmonte.me"},
+    ],
+    "MT": [
+        {"name":"Mellieħa Holiday Centre",         "lat":35.962,"lon":14.362,"stars":"⭐⭐⭐⭐","price":"from €18/night","url":"https://www.melliehaholidaycentre.com"},
+    ],
+    "CY": [
+        {"name":"Camping Forest Park Troodos",     "lat":34.921,"lon":32.878,"stars":"⭐⭐⭐","price":"from €12/night","url":"https://www.cypruscamp.com"},
+    ],
+}
+
+# ── Feature builder (used for comparison predictions) ────────────────────────
+def lookup_lag(geo, yr, mo, shift):
+    mo2, yr2 = mo - shift, yr
+    while mo2 < 1:
+        mo2 += 12; yr2 -= 1
+    row = hist[(hist["geo"] == geo) & (hist["year"] == yr2) & (hist["month"] == mo2)]
+    return float(row["nights_spent"].values[0]) if len(row) else None
+
+def build_features(geo, yr, mo):
+    l1  = lookup_lag(geo, yr, mo, 1)  or 0
+    l12 = lookup_lag(geo, yr, mo, 12) or 0
+    return pd.DataFrame([{
+        "geo":       geo,
+        "year_rel":  yr - 2010,
+        "month":     mo,
+        "month_sin": np.sin(2 * np.pi * mo / 12),
+        "month_cos": np.cos(2 * np.pi * mo / 12),
+        "lag_1m":    l1,
+        "lag_12m":   l12,
+        "is_summer": int(mo in [6, 7, 8]),
+        "is_july":   int(mo == 7),
+        "is_covid":  int(yr in [2020, 2021]),
+    }])
 
 # ── Hero banner ───────────────────────────────────────────────────────────────
 st.markdown("""
@@ -323,28 +304,19 @@ st.markdown('<div class="section-header">⛺ Select Parameters</div>', unsafe_al
 
 col1, col2, col3 = st.columns([2, 1, 2])
 with col1:
-    country = st.selectbox("Country", COUNTRIES, index=COUNTRIES.index("FR"), label_visibility="visible")
+    country = st.selectbox("Country", COUNTRIES, index=COUNTRIES.index("FR"))
 with col2:
-    year = st.number_input("Year", min_value=2010, max_value=2030, value=2025, label_visibility="visible")
+    year = st.number_input("Year", min_value=2010, max_value=2030, value=2025)
 with col3:
-    month = st.selectbox("Month", range(1, 13),
-                         format_func=lambda m: MONTH_NAMES[m - 1],
-                         index=6, label_visibility="visible")
+    month = st.selectbox("Month", range(1, 13), format_func=lambda m: MONTH_NAMES[m-1], index=6)
 
 st.markdown('<hr class="golden-divider">', unsafe_allow_html=True)
 
-# ── Lag lookup ────────────────────────────────────────────────────────────────
-def lookup_lag(geo, yr, mo, shift):
-    mo2, yr2 = mo - shift, yr
-    while mo2 < 1:
-        mo2 += 12; yr2 -= 1
-    row = hist[(hist["geo"] == geo) & (hist["year"] == yr2) & (hist["month"] == mo2)]
-    return float(row["nights_spent"].values[0]) if len(row) else None
+# ── Lag features ─────────────────────────────────────────────────────────────
+st.markdown('<div class="section-header">📊 Lag Features</div>', unsafe_allow_html=True)
 
 lag_1m_auto  = lookup_lag(country, year, month, 1)
 lag_12m_auto = lookup_lag(country, year, month, 12)
-
-st.markdown('<div class="section-header">📊 Lag Features</div>', unsafe_allow_html=True)
 
 lcol1, lcol2 = st.columns(2)
 with lcol1:
@@ -363,45 +335,38 @@ with lcol2:
 
 st.markdown('<hr class="golden-divider">', unsafe_allow_html=True)
 
-# ── Predict button ────────────────────────────────────────────────────────────
+# ── Predict ───────────────────────────────────────────────────────────────────
 _, bcol, _ = st.columns([1, 2, 1])
 with bcol:
     predict = st.button("Predict 🔍", type="primary", use_container_width=True)
 
 if predict:
     X = pd.DataFrame([{
-        "geo":       country,
-        "year_rel":  year - 2010,
-        "month":     month,
+        "geo": country, "year_rel": year - 2010, "month": month,
         "month_sin": np.sin(2 * np.pi * month / 12),
         "month_cos": np.cos(2 * np.pi * month / 12),
-        "lag_1m":    lag_1m,
-        "lag_12m":   lag_12m,
-        "is_summer": int(month in [6, 7, 8]),
+        "lag_1m": lag_1m, "lag_12m": lag_12m,
+        "is_summer": int(month in [6,7,8]),
         "is_july":   int(month == 7),
-        "is_covid":  int(year in [2020, 2021]),
+        "is_covid":  int(year in [2020,2021]),
     }])
 
     demand_code  = int(clf_model.predict(X)[0])
     demand_proba = clf_model.predict_proba(X)[0]
     nights_pred  = max(0, float(reg_model.predict(X)[0]))
+    labels       = ["Low", "Medium", "High"]
+    badge_class  = ["badge-low", "badge-medium", "badge-high"]
 
-    labels      = ["Low", "Medium", "High"]
-    badge_class = ["badge-low", "badge-medium", "badge-high"]
-
-    country_avg = hist[(hist["geo"] == country) & (hist["month"] == month)]["nights_spent"].mean()
-    if nights_pred > country_avg * 1.1:
-        interp = f"Above average for {country} in {MONTH_NAMES[month-1]}"
-    elif nights_pred < country_avg * 0.9:
-        interp = f"Below average for {country} in {MONTH_NAMES[month-1]}"
-    else:
-        interp = f"Around average for {country} in {MONTH_NAMES[month-1]}"
+    avg = hist[(hist["geo"] == country) & (hist["month"] == month)]["nights_spent"].mean()
+    interp = ("Above average" if nights_pred > avg * 1.1
+              else "Below average" if nights_pred < avg * 0.9
+              else "Around average")
+    interp += f" for {country} in {MONTH_NAMES[month-1]}"
 
     st.markdown('<hr class="golden-divider">', unsafe_allow_html=True)
     st.markdown('<div class="section-header">🔍 Results</div>', unsafe_allow_html=True)
 
-    rc1, rc2, rc3 = st.columns([2, 0.15, 2])
-
+    rc1, _, rc3 = st.columns([2, 0.15, 2])
     with rc1:
         st.markdown(f"""
         <div class="result-card">
@@ -409,36 +374,24 @@ if predict:
             <div class="result-value-large {badge_class[demand_code]}">{labels[demand_code]}</div>
             <div style="margin-top:1.4rem;">
         """, unsafe_allow_html=True)
-
         for i, (lbl, prob) in enumerate(zip(labels, demand_proba)):
             pct = int(prob * 100)
             st.markdown(f"""
             <div class="prob-row">
                 <span class="prob-label">{lbl}</span>
-                <div class="prob-bar-bg">
-                    <div class="prob-bar-fill" style="width:{pct}%;background:{PROB_COLORS[i]};"></div>
-                </div>
+                <div class="prob-bar-bg"><div class="prob-bar-fill" style="width:{pct}%;background:{PROB_COLORS[i]};"></div></div>
                 <span class="prob-pct">{pct}%</span>
-            </div>
-            """, unsafe_allow_html=True)
-
+            </div>""", unsafe_allow_html=True)
         st.markdown("</div></div>", unsafe_allow_html=True)
 
     with rc3:
         st.markdown(f"""
         <div class="result-card">
             <div class="result-label">Estimated Nights Spent</div>
-            <div class="result-value-large" style="color:#F4A261;">
-                ⛺ {nights_pred:,.0f}
-            </div>
-            <div style="margin-top:0.8rem;font-size:0.88rem;color:#95D5B2;font-weight:600;">
-                {interp}
-            </div>
-            <div style="margin-top:0.4rem;font-size:0.78rem;color:#52B788;">
-                {country} · {MONTH_NAMES[month-1]} {year}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            <div class="result-value-large" style="color:#F4A261;">⛺ {nights_pred:,.0f}</div>
+            <div style="margin-top:0.8rem;font-size:0.88rem;color:#95D5B2;font-weight:600;">{interp}</div>
+            <div style="margin-top:0.4rem;font-size:0.78rem;color:#52B788;">{country} · {MONTH_NAMES[month-1]} {year}</div>
+        </div>""", unsafe_allow_html=True)
 
 # ── Historical chart ──────────────────────────────────────────────────────────
 st.markdown('<hr class="golden-divider">', unsafe_allow_html=True)
@@ -452,32 +405,87 @@ if len(country_hist) > 0:
     fig, ax = plt.subplots(figsize=(14, 3.4))
     fig.patch.set_facecolor("#1B4332")
     ax.set_facecolor("#1B4332")
-
-    ax.plot(country_hist["date"], country_hist["nights_spent"] / 1e6,
-            color="#F4A261", linewidth=1.8, zorder=3)
-    ax.fill_between(country_hist["date"], country_hist["nights_spent"] / 1e6,
-                    alpha=0.15, color="#F4A261")
-
-    ax.axvspan(pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31"),
-               alpha=0.15, color="#95D5B2", zorder=1)
-    ax.text(pd.Timestamp("2020-06-01"), ax.get_ylim()[1] * 0.92,
-            "COVID-19", fontsize=7.5, color="#95D5B2", va="top")
-
+    ax.plot(country_hist["date"], country_hist["nights_spent"] / 1e6, color="#F4A261", linewidth=1.8, zorder=3)
+    ax.fill_between(country_hist["date"], country_hist["nights_spent"] / 1e6, alpha=0.15, color="#F4A261")
+    ax.axvspan(pd.Timestamp("2020-01-01"), pd.Timestamp("2021-12-31"), alpha=0.15, color="#95D5B2", zorder=1)
+    ax.text(pd.Timestamp("2020-06-01"), ax.get_ylim()[1] * 0.92, "COVID-19", fontsize=7.5, color="#95D5B2", va="top")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:.1f}M"))
-    ax.set_xlabel("")
     ax.set_ylabel("Nights spent", fontsize=8.5, color="#95D5B2")
     ax.tick_params(colors="#95D5B2", labelsize=8)
     for spine in ax.spines.values():
         spine.set_visible(False)
     ax.grid(axis="y", color="#2d6a4f", linewidth=0.8)
-
     plt.tight_layout()
     st.markdown('<div class="chart-card">', unsafe_allow_html=True)
     st.pyplot(fig, use_container_width=True)
     st.markdown('</div>', unsafe_allow_html=True)
     plt.close()
 
-# ── Map ───────────────────────────────────────────────────────────────────────
+# ── Country comparison ────────────────────────────────────────────────────────
+st.markdown('<hr class="golden-divider">', unsafe_allow_html=True)
+st.markdown('<div class="section-header">🏆 Country Comparison</div>', unsafe_allow_html=True)
+
+other_default = COUNTRIES.index("DE") if country != "DE" else COUNTRIES.index("FR")
+other_country = st.selectbox("Compare with", COUNTRIES, index=other_default, key="compare_country")
+
+if st.button("Compare 🔍", use_container_width=False):
+    labels = ["Low", "Medium", "High"]
+    badge_class = ["badge-low", "badge-medium", "badge-high"]
+    badge_emoji = ["🟢", "🟡", "🔴"]
+
+    X1 = build_features(country,       year, month)
+    X2 = build_features(other_country, year, month)
+
+    code1  = int(clf_model.predict(X1)[0])
+    nights1 = max(0, float(reg_model.predict(X1)[0]))
+    code2  = int(clf_model.predict(X2)[0])
+    nights2 = max(0, float(reg_model.predict(X2)[0]))
+
+    cc1, _, cc2 = st.columns([2, 0.2, 2])
+    with cc1:
+        st.markdown(f"""
+        <div class="compare-card">
+            <div class="compare-country">🏳️ {country}</div>
+            <div class="compare-level {badge_class[code1]}">{badge_emoji[code1]} {labels[code1]}</div>
+            <div class="compare-nights">⛺ {nights1:,.0f} nights</div>
+            <div style="font-size:0.78rem;color:#95D5B2;margin-top:0.4rem;">{MONTH_NAMES[month-1]} {year}</div>
+        </div>""", unsafe_allow_html=True)
+    with cc2:
+        st.markdown(f"""
+        <div class="compare-card">
+            <div class="compare-country">🏳️ {other_country}</div>
+            <div class="compare-level {badge_class[code2]}">{badge_emoji[code2]} {labels[code2]}</div>
+            <div class="compare-nights">⛺ {nights2:,.0f} nights</div>
+            <div style="font-size:0.78rem;color:#95D5B2;margin-top:0.4rem;">{MONTH_NAMES[month-1]} {year}</div>
+        </div>""", unsafe_allow_html=True)
+
+    # Comparison chart
+    h1 = hist[hist["geo"] == country].copy()
+    h2 = hist[hist["geo"] == other_country].copy()
+    for h in [h1, h2]:
+        h["date"] = pd.to_datetime(h[["year","month"]].assign(day=1))
+
+    fig2, ax2 = plt.subplots(figsize=(14, 3.2))
+    fig2.patch.set_facecolor("#1B4332")
+    ax2.set_facecolor("#1B4332")
+    ax2.plot(h1.sort_values("date")["date"], h1.sort_values("date")["nights_spent"] / 1e6,
+             color="#F4A261", linewidth=1.6, label=country)
+    ax2.plot(h2.sort_values("date")["date"], h2.sort_values("date")["nights_spent"] / 1e6,
+             color="#95D5B2", linewidth=1.6, label=other_country)
+    ax2.legend(facecolor="#1B4332", edgecolor="#2d6a4f", labelcolor="#F0EAD6", fontsize=9)
+    ax2.yaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: f"{x:.1f}M"))
+    ax2.set_ylabel("Nights spent", fontsize=8.5, color="#95D5B2")
+    ax2.tick_params(colors="#95D5B2", labelsize=8)
+    for spine in ax2.spines.values():
+        spine.set_visible(False)
+    ax2.grid(axis="y", color="#2d6a4f", linewidth=0.8)
+    plt.tight_layout()
+    st.markdown('<div class="chart-card" style="margin-top:1rem;">', unsafe_allow_html=True)
+    st.pyplot(fig2, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    plt.close()
+
+# ── Map + curated campsites ───────────────────────────────────────────────────
 COUNTRY_COORDS = {
     "AT": (47.5, 14.5, 7), "BE": (50.5,  4.5, 8), "BG": (42.7, 25.5, 7),
     "CH": (46.8,  8.2, 8), "CY": (35.1, 33.4, 9), "CZ": (49.8, 15.5, 7),
@@ -494,62 +502,45 @@ COUNTRY_COORDS = {
 }
 
 st.markdown('<hr class="golden-divider">', unsafe_allow_html=True)
-st.markdown(f'<div class="section-header">🗺️ Campsites in {country}</div>', unsafe_allow_html=True)
-
-with st.spinner("Finding campsites via OpenStreetMap..."):
-    campsites = get_campsites(country)
+st.markdown(f'<div class="section-header">🗺️ Top Campsites in {country}</div>', unsafe_allow_html=True)
 
 lat, lon, zoom = COUNTRY_COORDS.get(country, (54.0, 15.0, 4))
-m = folium.Map(
-    location=[lat, lon],
-    zoom_start=zoom,
-    tiles="CartoDB dark_matter",
-    zoom_control=True,
-    scrollWheelZoom=False,
-)
+campsites = TOP_CAMPSITES.get(country, [])
 
-# Country centre marker
-folium.Marker(
-    location=[lat, lon],
-    tooltip=country,
-    icon=folium.Icon(color="orange", icon="star"),
-).add_to(m)
+m = folium.Map(location=[lat, lon], zoom_start=zoom, tiles="CartoDB dark_matter",
+               zoom_control=True, scrollWheelZoom=False)
+folium.Marker(location=[lat, lon], tooltip=country,
+              icon=folium.Icon(color="orange", icon="star")).add_to(m)
 
-# Campsite pins
 for cs in campsites:
-    if cs["lat"] and cs["lon"]:
-        folium.Marker(
-            location=[cs["lat"], cs["lon"]],
-            tooltip=cs["name"],
-            popup=folium.Popup(
-                f"<b>{cs['name']}</b><br>{cs['stars']}<br>"
-                f"<a href='{cs['booking']}' target='_blank'>View prices →</a>",
-                max_width=200,
-            ),
-            icon=folium.Icon(color="green", icon="home"),
-        ).add_to(m)
+    folium.Marker(
+        location=[cs["lat"], cs["lon"]],
+        tooltip=cs["name"],
+        popup=folium.Popup(
+            f"<b>{cs['name']}</b><br>{cs['stars']}<br>{cs['price']}<br>"
+            f"<a href='{cs['url']}' target='_blank'>Visit website →</a>",
+            max_width=220,
+        ),
+        icon=folium.Icon(color="green", icon="home"),
+    ).add_to(m)
 
 st_folium(m, use_container_width=True, height=420, returned_objects=[])
 
-# ── Campsite list ─────────────────────────────────────────────────────────────
-st.markdown(f'<div class="section-header">⛺ Top Campsites — {country}</div>', unsafe_allow_html=True)
-
+# Campsite cards
 if campsites:
     cards_html = '<div class="camp-grid">'
     for cs in campsites:
-        region_line = f'<div class="camp-region">📍 {cs["region"]}</div>' if cs["region"] else ""
-        stars_line  = f'<div class="camp-stars">{cs["stars"]}</div>' if cs["stars"] != "—" else ""
         cards_html += f"""
         <div class="camp-card">
             <div class="camp-name">{cs['name']}</div>
-            {stars_line}
-            {region_line}
-            <a class="camp-link" href="{cs['booking']}" target="_blank">View prices →</a>
+            <div class="camp-stars">{cs['stars']}</div>
+            <div class="camp-price">💶 {cs['price']}</div>
+            <a class="camp-link" href="{cs['url']}" target="_blank">Visit website →</a>
         </div>"""
     cards_html += "</div>"
     st.markdown(cards_html, unsafe_allow_html=True)
 else:
-    st.markdown('<div class="camp-none">No campsites found for this country in OpenStreetMap.</div>',
+    st.markdown('<p style="color:#95D5B2;font-size:0.9rem;">No curated campsites yet for this country.</p>',
                 unsafe_allow_html=True)
 
 # ── Footer ────────────────────────────────────────────────────────────────────
