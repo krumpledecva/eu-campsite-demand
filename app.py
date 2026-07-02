@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import folium
 from streamlit_folium import st_folium
+import requests
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -183,6 +184,42 @@ div.stButton > button:hover {
     transform: translateY(-1px);
 }
 
+/* ── Campsite cards ── */
+.camp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-top: 0.8rem;
+}
+.camp-card {
+    background: #1B4332;
+    border: 1px solid #2d6a4f;
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    animation: fadeIn 0.4s ease-out;
+}
+.camp-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #F0EAD6;
+    margin-bottom: 0.3rem;
+}
+.camp-stars { color: #F4A261; font-size: 0.9rem; margin-bottom: 0.3rem; }
+.camp-region { font-size: 0.78rem; color: #95D5B2; margin-bottom: 0.6rem; }
+.camp-link {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #0D1F17;
+    background: #F4A261;
+    border-radius: 8px;
+    padding: 0.3rem 0.75rem;
+    text-decoration: none;
+}
+.camp-link:hover { background: #e8894a; }
+.camp-none { color: #95D5B2; font-size: 0.9rem; padding: 0.5rem 0; }
+
 /* ── Footer ── */
 .app-footer {
     text-align: center;
@@ -216,6 +253,55 @@ def load_data():
 
 clf_model, reg_model = load_models()
 hist = load_data()
+
+# ── Campsite lookup via OpenStreetMap Overpass API ───────────────────────────
+EUROSTAT_TO_ISO = {"EL": "GR", "UK": "GB"}
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_campsites(country_code, limit=9):
+    iso = EUROSTAT_TO_ISO.get(country_code, country_code)
+    query = f"""
+    [out:json][timeout:25];
+    area["ISO3166-1"="{iso}"]->.c;
+    node["tourism"="camp_site"]["name"](area.c);
+    out body {limit};
+    """
+    try:
+        r = requests.post(
+            "https://overpass-api.de/api/interpreter",
+            data={"data": query},
+            timeout=25,
+        )
+        items = []
+        for el in r.json().get("elements", []):
+            tags = el.get("tags", {})
+            name = tags.get("name", "").strip()
+            if not name:
+                continue
+            raw_stars = tags.get("stars", tags.get("rating", ""))
+            try:
+                n = int(float(raw_stars))
+                stars_str = "⭐" * min(n, 5)
+            except (ValueError, TypeError):
+                stars_str = "—"
+            region = (tags.get("addr:city") or
+                      tags.get("addr:county") or
+                      tags.get("addr:region") or "")
+            booking = (
+                "https://www.booking.com/searchresults.html"
+                f"?ss={requests.utils.quote(name + ' ' + country_code)}&label=campsite"
+            )
+            items.append({
+                "name":    name,
+                "lat":     el.get("lat"),
+                "lon":     el.get("lon"),
+                "stars":   stars_str,
+                "region":  region,
+                "booking": booking,
+            })
+        return items
+    except Exception:
+        return []
 
 COUNTRIES   = sorted(hist["geo"].unique().tolist())
 MONTH_NAMES = ["January","February","March","April","May","June",
@@ -408,7 +494,10 @@ COUNTRY_COORDS = {
 }
 
 st.markdown('<hr class="golden-divider">', unsafe_allow_html=True)
-st.markdown(f'<div class="section-header">🗺️ Demand Across Europe — {country}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="section-header">🗺️ Campsites in {country}</div>', unsafe_allow_html=True)
+
+with st.spinner("Finding campsites via OpenStreetMap..."):
+    campsites = get_campsites(country)
 
 lat, lon, zoom = COUNTRY_COORDS.get(country, (54.0, 15.0, 4))
 m = folium.Map(
@@ -418,12 +507,50 @@ m = folium.Map(
     zoom_control=True,
     scrollWheelZoom=False,
 )
+
+# Country centre marker
 folium.Marker(
     location=[lat, lon],
     tooltip=country,
     icon=folium.Icon(color="orange", icon="star"),
 ).add_to(m)
-st_folium(m, use_container_width=True, height=400, returned_objects=[])
+
+# Campsite pins
+for cs in campsites:
+    if cs["lat"] and cs["lon"]:
+        folium.Marker(
+            location=[cs["lat"], cs["lon"]],
+            tooltip=cs["name"],
+            popup=folium.Popup(
+                f"<b>{cs['name']}</b><br>{cs['stars']}<br>"
+                f"<a href='{cs['booking']}' target='_blank'>View prices →</a>",
+                max_width=200,
+            ),
+            icon=folium.Icon(color="green", icon="home"),
+        ).add_to(m)
+
+st_folium(m, use_container_width=True, height=420, returned_objects=[])
+
+# ── Campsite list ─────────────────────────────────────────────────────────────
+st.markdown(f'<div class="section-header">⛺ Top Campsites — {country}</div>', unsafe_allow_html=True)
+
+if campsites:
+    cards_html = '<div class="camp-grid">'
+    for cs in campsites:
+        region_line = f'<div class="camp-region">📍 {cs["region"]}</div>' if cs["region"] else ""
+        stars_line  = f'<div class="camp-stars">{cs["stars"]}</div>' if cs["stars"] != "—" else ""
+        cards_html += f"""
+        <div class="camp-card">
+            <div class="camp-name">{cs['name']}</div>
+            {stars_line}
+            {region_line}
+            <a class="camp-link" href="{cs['booking']}" target="_blank">View prices →</a>
+        </div>"""
+    cards_html += "</div>"
+    st.markdown(cards_html, unsafe_allow_html=True)
+else:
+    st.markdown('<div class="camp-none">No campsites found for this country in OpenStreetMap.</div>',
+                unsafe_allow_html=True)
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown(
