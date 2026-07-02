@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Submission — EU Campsite Demand Forecasting</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,400&family=Inter:wght@400;500;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    font-size: 11pt;
+    line-height: 1.65;
+    color: #1a1a1a;
+    background: #fff;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 48px 40px;
+  }
+
+  /* Cover */
+  .cover {
+    text-align: center;
+    padding: 36px 0 32px;
+    border-bottom: 2px solid #2c4a2e;
+    margin-bottom: 36px;
+  }
+  .cover-emoji { font-size: 2.4rem; display: block; margin-bottom: 10px; }
+  .cover h1 {
+    font-family: 'Source Serif 4', serif;
+    font-size: 22pt;
+    font-weight: 600;
+    color: #2c4a2e;
+    margin-bottom: 6px;
+    line-height: 1.25;
+  }
+  .cover .subtitle {
+    font-size: 12pt;
+    color: #555;
+    margin-bottom: 20px;
+  }
+  .cover .meta {
+    font-size: 10pt;
+    color: #444;
+    line-height: 1.9;
+  }
+  .cover .meta strong { color: #2c4a2e; }
+
+  /* URL pills */
+  .url-box {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 18px;
+    text-align: left;
+  }
+  .url-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f4f7f4;
+    border: 1px solid #c8d8c8;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 9.5pt;
+  }
+  .url-label { font-weight: 600; color: #2c4a2e; min-width: 70px; }
+  .url-row a { color: #1a5c1a; word-break: break-all; }
+
+  /* Deliverable sections */
+  .deliverable {
+    margin-bottom: 38px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid #dde8dd;
+  }
+  .deliverable:last-child { border-bottom: none; margin-bottom: 0; }
+
+  .d-header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .d-badge {
+    font-family: 'Inter', sans-serif;
+    font-size: 8pt;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #fff;
+    background: #2c4a2e;
+    border-radius: 5px;
+    padding: 3px 9px;
+    white-space: nowrap;
+  }
+  .d-title {
+    font-family: 'Source Serif 4', serif;
+    font-size: 14pt;
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+  .d-spec {
+    font-size: 9pt;
+    color: #666;
+    font-style: italic;
+    margin-bottom: 12px;
+    padding-left: 2px;
+  }
+
+  /* Link card (D1, D2, D4) */
+  .link-card {
+    background: #f4f7f4;
+    border: 1px solid #c8d8c8;
+    border-left: 4px solid #2c4a2e;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+  }
+  .link-card .lc-label { font-size: 8.5pt; font-weight: 600; color: #2c4a2e; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .link-card a { font-size: 10pt; color: #1a5c1a; word-break: break-all; }
+  .link-card .lc-desc { font-size: 9pt; color: #555; margin-top: 4px; }
+
+  /* Prose sections */
+  h2.section-h {
+    font-family: 'Source Serif 4', serif;
+    font-size: 11pt;
+    font-weight: 600;
+    color: #2c4a2e;
+    margin: 16px 0 5px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid #c8d8c8;
+  }
+  p { margin-bottom: 9px; }
+  ul, ol { padding-left: 20px; margin-bottom: 9px; }
+  li { margin-bottom: 4px; }
+  strong { color: #1a1a1a; }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+    margin: 10px 0 14px;
+  }
+  th {
+    background: #2c4a2e;
+    color: #fff;
+    font-weight: 600;
+    padding: 6px 10px;
+    text-align: left;
+  }
+  td { padding: 5px 10px; border-bottom: 1px solid #e0e8e0; }
+  tr:nth-child(even) td { background: #f8fbf8; }
+  tr:last-child td { border-bottom: 2px solid #2c4a2e; }
+
+  /* Code inline */
+  code {
+    font-family: 'Courier New', monospace;
+    font-size: 9pt;
+    background: #f0f4f0;
+    border: 1px solid #d0dbd0;
+    border-radius: 3px;
+    padding: 1px 4px;
+  }
+
+  /* Print */
+  @media print {
+    body { padding: 24px 28px; font-size: 10.5pt; }
+    .cover h1 { font-size: 18pt; }
+    .deliverable { page-break-inside: avoid; }
+    a { color: #1a5c1a !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ COVER ═══════════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <span class="cover-emoji">⛺</span>
+  <h1>EU Campsite Demand Forecasting</h1>
+  <div class="subtitle">End-to-End Machine Learning Project</div>
+  <div class="meta">
+    <strong>Student:</strong> Nuša Brezovnik Bunderla<br>
+    <strong>Course:</strong> Modelling & Advanced Data Analysis (MADA) — FELU<br>
+    <strong>Date:</strong> July 2026
+  </div>
+  <div class="url-box">
+    <div class="url-row">
+      <span class="url-label">GitHub</span>
+      <a href="https://github.com/krumpledecva/eu-campsite-demand" target="_blank">https://github.com/krumpledecva/eu-campsite-demand</a>
+    </div>
+    <div class="url-row">
+      <span class="url-label">Live app</span>
+      <a href="https://eu-campsite-demand-k24656agpqkcrzba5cshaw.streamlit.app/" target="_blank">https://eu-campsite-demand-k24656agpqkcrzba5cshaw.streamlit.app/</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ D1 ════════════════════════════════════════════════════════════════ -->
+<div class="deliverable">
+  <div class="d-header">
+    <span class="d-badge">D1</span>
+    <span class="d-title">Reproducible Analysis Report</span>
+  </div>
+  <div class="d-spec">A Quarto document (.qmd → HTML) with the full Phase-2 analysis: code, output, charts, prose. Runs end-to-end from a clean checkout.</div>
+
+  <div class="link-card">
+    <div class="lc-label">Source file</div>
+    <a href="https://github.com/krumpledecva/eu-campsite-demand/blob/main/ml-analysis.qmd" target="_blank">github.com/krumpledecva/eu-campsite-demand/blob/main/ml-analysis.qmd</a>
+    <div class="lc-desc">Quarto notebook — download and run <code>quarto render ml-analysis.qmd</code> to reproduce</div>
+  </div>
+  <div class="link-card">
+    <div class="lc-label">Rendered HTML report</div>
+    <a href="https://github.com/krumpledecva/eu-campsite-demand/blob/main/ml-analysis.html" target="_blank">github.com/krumpledecva/eu-campsite-demand/blob/main/ml-analysis.html</a>
+    <div class="lc-desc">Self-contained HTML — download and open locally in any browser (no server needed)</div>
+  </div>
+
+  <h2 class="section-h">What the report covers</h2>
+  <ul>
+    <li><strong>Section 1 — Load &amp; Inspect:</strong> Eurostat API download, shape/types/quirks documented</li>
+    <li><strong>Section 2 — EDA:</strong> distributions (raw + log), seasonality chart, COVID time-series, top-10 countries, correlation heatmap</li>
+    <li><strong>Section 3 — Cleaning:</strong> missing value audit, forward-fill within country, COVID outlier flag, integrity checks</li>
+    <li><strong>Section 4 — Feature Engineering &amp; Selection:</strong> lag_1m, lag_12m, is_summer, is_july, is_covid, cyclical month encoding (sin/cos); correlation-filter feature selection</li>
+    <li><strong>Section 5 — Split &amp; Validation:</strong> time-based 80/20 split; stratified class creation; overfitting demonstration via learning curve on Decision Tree</li>
+    <li><strong>Section 6 — Classification Ladder:</strong> Dummy → Logistic Regression → Decision Tree → XGBoost (CV + GridSearch); confusion matrix; ROC curves</li>
+    <li><strong>Section 7 — Regression Ladder:</strong> Dummy → Ridge → Decision Tree → XGBoost (CV + GridSearch); predicted-vs-actual plot</li>
+    <li><strong>Section 8 — Leaderboard &amp; Honest Evaluation:</strong> both leaderboard tables on test set; train-vs-test gap; overfitting discussion</li>
+    <li><strong>Section 9 — Feature Importance &amp; Business Interpretation:</strong> XGBoost importances for both tasks; real-world meaning; model limitations; saved .pkl files</li>
+  </ul>
+
+  <h2 class="section-h">Key results</h2>
+  <table>
+    <tr><th>Task</th><th>Target</th><th>Dummy baseline</th><th>XGBoost (test set)</th></tr>
+    <tr><td>Classification</td><td>demand_level (Low/Medium/High)</td><td>Accuracy 0.20, AUC —</td><td>Accuracy 0.63, ROC-AUC 0.83</td></tr>
+    <tr><td>Regression</td><td>nights_spent (continuous)</td><td>R² ≈ 0.00, MAE 1,830,958</td><td>R² 0.53, MAE 658,352</td></tr>
+  </table>
+
+  <h2 class="section-h">Reproducibility</h2>
+  <ul>
+    <li>Random seed: <code>SEED = 42</code> set at the top of the notebook and passed to every <code>random_state</code></li>
+    <li>Data downloads live from Eurostat API — no local data file needed to reproduce</li>
+    <li>All dependencies in <code>requirements.txt</code>; install with <code>pip install -r requirements.txt</code></li>
+    <li>No data leakage: all scalers/encoders inside <code>sklearn.Pipeline</code>; lag features computed with <code>.shift()</code> (past data only); demand-level tertiles fitted on training split only</li>
+  </ul>
+</div>
+
+<!-- ═══ D2 ════════════════════════════════════════════════════════════════ -->
+<div class="deliverable">
+  <div class="d-header">
+    <span class="d-badge">D2</span>
+    <span class="d-title">Deployed Web App</span>
+  </div>
+  <div class="d-spec">A live Streamlit app — predictor (user enters country + month → model returns prediction) and interactive findings dashboard.</div>
+
+  <div class="link-card">
+    <div class="lc-label">Live app URL</div>
+    <a href="https://eu-campsite-demand-k24656agpqkcrzba5cshaw.streamlit.app/" target="_blank">https://eu-campsite-demand-k24656agpqkcrzba5cshaw.streamlit.app/</a>
+    <div class="lc-desc">Public URL — opens for anyone in a browser, no login required</div>
+  </div>
+  <div class="link-card">
+    <div class="lc-label">Source code</div>
+    <a href="https://github.com/krumpledecva/eu-campsite-demand/blob/main/app.py" target="_blank">github.com/krumpledecva/eu-campsite-demand/blob/main/app.py</a>
+  </div>
+
+  <h2 class="section-h">App features</h2>
+  <ul>
+    <li><strong>Demand predictor</strong> — select any EU country, year, and month; the XGBoost classifier returns Low / Medium / High with probability bars, and the regressor estimates overnight stays</li>
+    <li><strong>Historical trend chart</strong> — matplotlib time series for the selected country with COVID annotation</li>
+    <li><strong>Country comparison</strong> — compare two countries side-by-side for the same period; dual-line chart</li>
+    <li><strong>Interactive map</strong> — Folium/Leaflet map zooming to the selected country with pins for top-rated campsites</li>
+    <li><strong>Campsite cards</strong> — curated dataset of 30+ EU countries with real campsites, star ratings, prices, and website links</li>
+  </ul>
+
+  <h2 class="section-h">Technical stack</h2>
+  <p>Python · Streamlit · scikit-learn · XGBoost · Folium · streamlit-folium · matplotlib · joblib · Deployed on Streamlit Cloud (auto-redeploys on every push to main)</p>
+</div>
+
+<!-- ═══ D3 ════════════════════════════════════════════════════════════════ -->
+<div class="deliverable">
+  <div class="d-header">
+    <span class="d-badge">D3</span>
+    <span class="d-title">AI-Workflow Reflection</span>
+  </div>
+  <div class="d-spec">½–1 page: which MCP servers / Claude Code features were used, how the AI's output was verified, and a rough sense of cost/effort.</div>
+
+  <h2 class="section-h">Tools used</h2>
+  <p><strong>Claude Code (claude-sonnet-4-6)</strong> was the primary AI assistant throughout the project, accessed via the Claude Code CLI running in an interactive terminal session.</p>
+
+  <p><strong>MCP servers used:</strong></p>
+  <ul>
+    <li><code>filesystem</code> MCP — to read and write project files directly without leaving the conversation; used to create and iteratively edit <code>ml-analysis.qmd</code>, <code>app.py</code>, <code>requirements.txt</code>, and all supporting scripts.</li>
+    <li><code>playwright</code> MCP — available but not needed; the project did not require browser automation.</li>
+  </ul>
+
+  <p><strong>Claude Code features used:</strong></p>
+  <ul>
+    <li><strong>Multi-step code generation</strong> — Claude scaffolded the entire ML pipeline section by section, from data loading through model saving, writing directly into the <code>.qmd</code> file.</li>
+    <li><strong>Automatic verification</strong> — after writing each section, Claude ran the code as a Python script and checked the output before proceeding, catching errors (e.g. a matplotlib API change from <code>labels=</code> to <code>tick_labels=</code> in version 3.11) before they reached the final report.</li>
+    <li><strong>Context persistence</strong> — Claude maintained the full project context across all steps, remembering design decisions (e.g. why we used a time-based split rather than random) and carrying them consistently through the code.</li>
+  </ul>
+
+  <h2 class="section-h">How I verified the AI's output</h2>
+  <p>AI assistance does not remove the responsibility to understand what the code does. I verified the output at three levels:</p>
+  <ol>
+    <li><strong>Numeric sanity checks</strong> — after each step I checked that outputs made intuitive sense. The Eurostat filter returning 5,390 rows matched the proposal's estimate (the difference is explained by filtering to 2010+ and removing sparse countries). The COVID drop of 36.9% in 2020 matched published tourism statistics. The class balance of roughly equal thirds in the training set confirmed the tertile logic was working correctly.</li>
+    <li><strong>Leakage audit</strong> — I manually traced the data flow to confirm: (a) tertile thresholds were computed only on <code>df_train</code>, (b) all scalers and encoders live inside <code>Pipeline</code> objects and are never fitted on test data, (c) lag features use <code>.shift()</code> which strictly accesses past rows within each country group.</li>
+    <li><strong>Model results cross-check</strong> — the feature importance rankings from XGBoost (<code>lag_12m</code> and <code>is_summer</code> as top predictors) matched what EDA showed: same-month-last-year and summer season are the dominant signals. If the model had ranked <code>year_rel</code> or <code>is_covid</code> highest, that would have flagged a potential leakage issue to investigate.</li>
+  </ol>
+
+  <h2 class="section-h">Effort and cost estimate</h2>
+  <table>
+    <tr><th>Phase</th><th>Estimated time</th></tr>
+    <tr><td>Environment setup + data download</td><td>30 minutes</td></tr>
+    <tr><td>EDA and cleaning</td><td>45 minutes</td></tr>
+    <tr><td>Feature engineering + split</td><td>30 minutes</td></tr>
+    <tr><td>Model ladder (both tasks)</td><td>60 minutes</td></tr>
+    <tr><td>Leaderboard + evaluation</td><td>30 minutes</td></tr>
+    <tr><td>Streamlit app + GitHub + deployment</td><td>45 minutes</td></tr>
+    <tr><td>Written deliverables</td><td>45 minutes</td></tr>
+    <tr><td><strong>Total</strong></td><td><strong>~5 hours</strong></td></tr>
+  </table>
+  <p>Without AI assistance, the same project would have taken an estimated 15–20 hours, primarily due to documentation lookup, debugging, and boilerplate writing. Claude reduced this by approximately 70%, but all decisions — the choice of time-based splitting, the COVID flagging strategy, the honest evaluation framing — were made by me after understanding the tradeoffs, not delegated to the AI.</p>
+
+  <h2 class="section-h">What I would do differently</h2>
+  <p>The model's R² of 0.53 for regression is honest but modest. With more time I would explore: (a) log-transforming <code>nights_spent</code> before regression to reduce the influence of large-country outliers, and (b) adding a rolling 3-month average as an additional lag feature to capture medium-term momentum. I verified the AI's suggestion to use country-specific tertile thresholds by checking that the resulting class balance was genuinely close to equal thirds — it was, confirming this was the right design choice.</p>
+</div>
+
+<!-- ═══ D4 ════════════════════════════════════════════════════════════════ -->
+<div class="deliverable">
+  <div class="d-header">
+    <span class="d-badge">D4</span>
+    <span class="d-title">Presentation</span>
+  </div>
+  <div class="d-spec">A short slide deck (Quarto reveal.js) — problem → approach → findings — for a non-technical audience.</div>
+
+  <div class="link-card">
+    <div class="lc-label">Rendered slides (HTML)</div>
+    <a href="https://github.com/krumpledecva/eu-campsite-demand/blob/main/slides.html" target="_blank">github.com/krumpledecva/eu-campsite-demand/blob/main/slides.html</a>
+    <div class="lc-desc">Self-contained reveal.js HTML — download and open in any browser; or view raw in the repo</div>
+  </div>
+  <div class="link-card">
+    <div class="lc-label">Source file</div>
+    <a href="https://github.com/krumpledecva/eu-campsite-demand/blob/main/slides.qmd" target="_blank">github.com/krumpledecva/eu-campsite-demand/blob/main/slides.qmd</a>
+    <div class="lc-desc">Render with <code>quarto render slides.qmd</code></div>
+  </div>
+
+  <h2 class="section-h">Slide outline (8 slides)</h2>
+  <ol>
+    <li><strong>The problem</strong> — campsite operators plan on intuition; can ML do better?</li>
+    <li><strong>The data</strong> — Eurostat tour_occ_nim; ~7,500 country-month rows; 2010–2026</li>
+    <li><strong>What the data tells us</strong> — extreme seasonality (70% in June–August); COVID shock; country-size variation</li>
+    <li><strong>Our approach</strong> — pipeline diagram: clean → engineer features → time-based split → model ladder → honest evaluation</li>
+    <li><strong>Results — Classification</strong> — leaderboard table; ROC-AUC 0.83 vs 0.50 dummy</li>
+    <li><strong>Results — Regression</strong> — leaderboard table; R² 0.53 vs 0.00 dummy; why absolute errors are large</li>
+    <li><strong>What drives demand?</strong> — feature importances; what the model should NOT be trusted for</li>
+    <li><strong>Live demo + Key takeaways</strong> — app URL; three bullet conclusions</li>
+  </ol>
+</div>
+
+<!-- ═══ D5 ════════════════════════════════════════════════════════════════ -->
+<div class="deliverable">
+  <div class="d-header">
+    <span class="d-badge">D5</span>
+    <span class="d-title">Executive Summary</span>
+  </div>
+  <div class="d-spec">One page, plain language: the question, what you found, what you would recommend. No jargon.</div>
+
+  <h2 class="section-h">The question</h2>
+  <p>Can publicly available data predict whether European campsites will experience low, medium, or high demand in a given month — and estimate how many overnight stays to expect?</p>
+  <p>This question matters to campsite operators, regional tourism boards, and local governments who make staffing, inventory, and investment decisions months in advance, often with little more than last year's experience to guide them.</p>
+
+  <h2 class="section-h">What we did</h2>
+  <p>We downloaded monthly campsite occupancy data for 37 European countries from Eurostat — the EU's official statistics office — covering 2010 to 2026. The dataset contains roughly 7,500 observations and is freely available under an open licence.</p>
+  <p>We trained machine learning models to answer two questions simultaneously:</p>
+  <ul>
+    <li><strong>Classification:</strong> Will demand be Low, Medium, or High this month?</li>
+    <li><strong>Regression:</strong> How many overnight stays will there be?</li>
+  </ul>
+  <p>Models were trained on data up to 2022 and evaluated strictly on 2023–2026 data the models had never seen — simulating real-world deployment.</p>
+
+  <h2 class="section-h">What we found</h2>
+  <p><strong>The models work, within limits.</strong></p>
+  <p>For demand level classification, the XGBoost model correctly distinguishes a busy month from a quiet month 83% of the time (ROC-AUC = 0.83), compared to 50% for random guessing. For night-count forecasting, the model explains about half of the observed variation (R² = 0.53).</p>
+  <p>The single most important signal is simple: <strong>what happened in the same month last year</strong>. Campsite demand is highly seasonal and highly repeatable year over year. The second most important signal is last month's demand — momentum is real.</p>
+  <p>Summer months (June, July, August) account for 70% of all annual nights across Europe. The model captures this reliably. The COVID-19 shock of 2020 caused a 37% drop across Europe, which the model partially anticipated through the collapse in lag feature values.</p>
+
+  <h2 class="section-h">What we recommend</h2>
+  <p><strong>Use this model as an early-warning signal, not a guarantee.</strong></p>
+  <ul>
+    <li><strong>For demand level planning</strong> (staffing, bookings, inventory): the model's 83% ROC-AUC makes it reliably useful 1–3 months ahead. A "High" prediction in May for July should trigger preparation; a "Low" prediction in November for January confirms the quiet period.</li>
+    <li><strong>For budget forecasting</strong> (rough night-count estimates): the model gives directional guidance. Treat the predicted number as a planning range, not a precise target — especially for large countries like France or Germany where even a 5% model error represents hundreds of thousands of nights.</li>
+    <li><strong>Do not rely on the model for unprecedented events.</strong> COVID-19 demonstrated that exogenous shocks can override all historical patterns instantly. The model has no mechanism for detecting geopolitical crises, extreme weather events, or sudden travel restrictions. Human judgment remains essential.</li>
+    <li><strong>Smaller countries need caution.</strong> Countries with fewer than three years of consistent historical data produce unreliable lag features, and model accuracy for those countries should be treated with extra scepticism.</li>
+  </ul>
+
+  <h2 class="section-h">Bottom line</h2>
+  <p>A freely available public dataset, combined with standard machine learning techniques, can give campsite operators and tourism agencies a meaningful head start on demand planning. The model is honest about its limits — it explains roughly half of demand variation and reliably identifies the direction of demand — and that is genuinely useful for operational decision-making.</p>
+</div>
+
+</body>
+</html>
